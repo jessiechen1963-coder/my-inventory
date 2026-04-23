@@ -1,0 +1,1441 @@
+﻿<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>盤點中心管理儀表板</title>
+<style>
+* { box-sizing: border-box; margin: 0; padding: 0; }
+body { font-family: 'Noto Sans TC', system-ui, sans-serif; background: #0f1117; color: #dde1ec; }
+
+/* ── Topbar ── */
+.topbar { background: #191b24; border-bottom: 1px solid #252836; padding: 0 20px; display: flex; align-items: center; position: sticky; top: 0; z-index: 20; }
+.topbar-brand { font-size: 13px; font-weight: 600; color: #eef0f8; padding: 14px 16px 14px 0; border-right: 1px solid #252836; margin-right: 4px; white-space: nowrap; }
+.topbar-brand span { font-weight: 400; color: #8890b0; margin-left: 6px; font-size: 11px; }
+.nav-tabs { display: flex; overflow-x: auto; flex: 1; }
+.nav-tab { display: flex; align-items: center; gap: 7px; padding: 14px 16px; cursor: pointer; font-size: 13px; color: #7b80a0; border-bottom: 2px solid transparent; white-space: nowrap; transition: color 0.15s; flex-shrink: 0; }
+.nav-tab:hover { color: #c0c4d8; }
+.nav-tab.active { color: #eef0f8; font-weight: 500; }
+
+.panel { display: none; padding: 20px; flex-direction: column; gap: 16px; }
+.panel.active { display: flex; }
+
+/* ── Period bar ── */
+.period-bar { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
+.period-label { font-size: 11px; color: #8890b0; font-weight: 500; letter-spacing: 0.04em; white-space: nowrap; }
+.period-tabs { display: flex; border: 1px solid #2e3148; border-radius: 8px; overflow: hidden; background: #191b24; }
+.period-tab { padding: 6px 13px; font-size: 12px; color: #8890b0; cursor: pointer; white-space: nowrap; transition: background 0.12s; }
+.period-tab:not(:last-child) { border-right: 1px solid #2e3148; }
+.period-tab.active { color: #eef0f8; font-weight: 500; }
+.period-range { margin-left: auto; font-size: 11px; color: #8890b0; background: #191b24; border: 1px solid #2e3148; border-radius: 6px; padding: 5px 12px; white-space: nowrap; }
+
+/* ── Legend ── */
+.legend-row { display: flex; align-items: center; gap: 12px; padding: 10px 14px; background: #191b24; border: 1px solid #252836; border-radius: 8px; flex-wrap: wrap; }
+.legend-item { display: flex; align-items: center; gap: 6px; font-size: 11px; color: #a0a4bc; }
+.leg-dot { width: 8px; height: 8px; border-radius: 50%; flex-shrink: 0; }
+.kpi-dash { width: 20px; height: 0; border-top: 2px dashed #e05c6e; }
+
+/* ── Headcount summary ── */
+.info-bar { display: grid; grid-template-columns: repeat(5, minmax(0,1fr)); gap: 10px; }
+.info-card { border-radius: 8px; padding: 14px 16px; background: #191b24; border: 1px solid #252836; }
+.info-val { font-size: 24px; font-weight: 600; color: #eef0f8; }
+.info-lbl { font-size: 11px; color: #8890b0; margin-top: 3px; }
+.info-date { font-size: 10px; color: #9b7ef0; margin-top: 4px; font-weight: 500; }
+
+/* ── Dept block ── */
+.dept-block { background: #191b24; border: 1px solid #252836; border-radius: 10px; overflow: hidden; }
+.dept-header { padding: 11px 16px; display: flex; align-items: center; gap: 8px; border-bottom: 1px solid #252836; background: #14151e; }
+.dept-dot { width: 9px; height: 9px; border-radius: 50%; flex-shrink: 0; }
+.dept-name { font-size: 13px; font-weight: 500; color: #eef0f8; }
+.dept-tag { font-size: 10px; padding: 2px 8px; border-radius: 10px; font-weight: 500; }
+.type-field { background: #162a22; color: #2dd4a0; }
+.type-admin { background: #1e2030; color: #7b7f96; }
+.dept-subtotal { margin-left: auto; font-size: 11px; color: #8890b0; }
+.manager-row { display: flex; align-items: center; gap: 10px; padding: 8px 16px; border-bottom: 1px solid #1e2030; background: #16182200; }
+.manager-label { font-size: 11px; color: #8890b0; }
+
+/* ── HC Table ── */
+.hc-table { width: 100%; border-collapse: collapse; }
+.hc-table th { font-size: 10px; font-weight: 600; color: #8890b0; padding: 7px 12px; text-align: center; background: #14151e; border-bottom: 1px solid #252836; white-space: nowrap; }
+.hc-table th:first-child { text-align: left; }
+.hc-table td { font-size: 12px; padding: 10px 12px; border-bottom: 1px solid #1d1f2c; vertical-align: middle; color: #d4d8ea; }
+.hc-table tr:last-child td { border-bottom: none; }
+.hc-table tr:hover td { background: #1c1e2a; }
+.total-cell { text-align: center; }
+.bar-track { height: 5px; background: #252836; border-radius: 3px; overflow: hidden; margin-top: 4px; }
+.bar-fill { height: 100%; border-radius: 3px; }
+.spec-cell { text-align: center; }
+.spec-pct-num { font-size: 17px; font-weight: 600; }
+.spec-count-lbl { font-size: 10px; color: #8890b0; margin-top: 1px; }
+.spec-bar-wrap { height: 5px; background: #252836; border-radius: 3px; overflow: hidden; margin-top: 4px; }
+.spec-bar-fill { height: 100%; border-radius: 3px; }
+.spec-high { color: #2dd4a0; }
+.spec-mid  { color: #f4c04a; }
+.spec-low  { color: #e05c6e; }
+.title-cell { display: flex; flex-wrap: wrap; gap: 4px; }
+.title-pill { display: inline-flex; align-items: center; gap: 3px; font-size: 10px; padding: 2px 7px; border-radius: 10px; white-space: nowrap; font-weight: 500; }
+/* 職稱 pills — dark theme */
+.pill-經理    { background: #2a1e40; color: #d8a8ff; border: 1px solid #4a3070; }
+.pill-課長    { background: #162a22; color: #2dd4a0; border: 1px solid #1d4035; }
+.pill-助理高專 { background: #152236; color: #70c0ff; border: 1px solid #1c4060; }
+.pill-資深專員 { background: #1a2d30; color: #5edfd6; border: 1px solid #1e4e52; }
+.pill-專員    { background: #1d2640; color: #a8b8d8; border: 1px solid #2c3858; }
+.pill-事務專員 { background: #201e38; color: #a8a4d0; border: 1px solid #2e2c50; }
+.pill-中階助理 { background: #1e2234; color: #8890b0; border: 1px solid #2e3248; }
+.pill-初階助理 { background: #1c1e30; color: #7278a0; border: 1px solid #282c44; }
+
+/* ── Quality ── */
+.quality-grid { display: grid; grid-template-columns: 1fr; gap: 14px; }
+.q-dept-block { background: #191b24; border: 1px solid #252836; border-radius: 10px; overflow: hidden; }
+.dept-rates { display: grid; grid-template-columns: repeat(3, 1fr); border-bottom: 1px solid #252836; }
+.dept-rate-cell { padding: 12px 10px; text-align: center; border-right: 1px solid #252836; background: #14151e; }
+.dept-rate-cell:last-child { border-right: none; }
+.rate-type { font-size: 10px; color: #8890b0; margin-bottom: 4px; }
+.rate-val { font-size: 19px; font-weight: 600; }
+.rate-kpi-note { font-size: 10px; color: #6870a0; margin-top: 2px; }
+/* 7欄位：課別 + 平均(品項/件數/金額) + 誤盤率(品項/件數/金額) */
+.course-group-header { display: grid; grid-template-columns: 90px repeat(3,1fr) repeat(3,1fr); padding: 5px 14px 0; background: #14151e; }
+.col-group-label { font-size: 10px; font-weight: 500; text-align: center; padding-bottom: 4px; letter-spacing: 0.03em; }
+.col-group-avg { color: #4da8f8; border-bottom: 2px solid #1e3a60; }
+.col-group-err { color: #f4874a; border-bottom: 2px solid #60301a; }
+.course-header-row { display: grid; grid-template-columns: 90px repeat(3,1fr) repeat(3,1fr); padding: 5px 14px; background: #14151e; border-bottom: 1px solid #252836; }
+.col-label { font-size: 10px; color: #8890b0; font-weight: 500; text-align: center; }
+.col-label:first-child { text-align: left; }
+.q-course-row { display: grid; grid-template-columns: 90px repeat(3,1fr) repeat(3,1fr); padding: 9px 14px; border-bottom: 1px solid #1d1f2c; align-items: center; }
+.q-course-row:last-child { border-bottom: none; }
+.q-course-row { cursor: pointer; transition: background 0.12s; }
+.q-course-row:hover { background: #1c1e2a; }
+.q-person-toggle { font-size: 9px; color: #545770; margin-left: 5px; display: inline-block; transition: transform 0.15s; vertical-align: middle; }
+.q-person-panel { display: none; border-top: 1px solid #1d1f2c; background: #13141c; }
+.q-person-panel.open { display: block; }
+.q-person-table { width: 100%; border-collapse: collapse; font-size: 11px; }
+.q-person-table th { font-size: 10px; font-weight: 500; color: #8890b0; padding: 6px 8px; text-align: center; background: #0f1117; border-bottom: 1px solid #252836; white-space: nowrap; }
+.q-person-table th:first-child { text-align: left; padding-left: 14px; }
+.q-person-table th:nth-child(2) { text-align: left; }
+.q-person-table td { padding: 6px 8px; border-bottom: 1px solid #191b24; text-align: center; color: #c0c4d8; font-size: 11px; }
+.q-person-table td:first-child { text-align: left; padding-left: 14px; font-size: 12px; color: #eef0f8; }
+.q-person-table td:nth-child(2) { text-align: left; color: #8890b0; font-size: 10px; }
+.q-person-table tr:last-child td { border-bottom: none; }
+.q-person-table tbody tr:nth-child(odd) { background: #161a22; }
+.q-person-table tbody tr:nth-child(even) { background: #111318; }
+.q-person-table tr:hover td { background: #1e2232 !important; }
+.q-person-nc { color: #545770; font-style: italic; font-size: 10px; }
+.q-person-footer { font-size: 10px; color: #6870a0; padding: 5px 14px 8px; background: #0f1117; border-top: 1px solid #1d1f2c; }
+/* avg cell in course row */
+.avg-cell { display: flex; flex-direction: column; align-items: center; gap: 2px; }
+.avg-num { font-size: 12px; font-weight: 500; color: #a8c8e8; }
+.avg-na  { font-size: 11px; color: #3a3f58; }
+.q-course-name { font-size: 12px; font-weight: 500; color: #d4d8ea; line-height: 1.5; }
+.q-course-sub { font-size: 10px; color: #8890b0; }
+.rate-cell { display: flex; flex-direction: column; align-items: center; gap: 4px; }
+.rate-num { font-size: 12px; font-weight: 600; }
+.ok   { color: #2dd4a0; }
+.warn { color: #f4c04a; }
+.over { color: #e05c6e; }
+.mini-bar-wrap { width: 100%; max-width: 60px; height: 4px; background: #252836; border-radius: 2px; position: relative; }
+.mini-bar-fill { height: 100%; border-radius: 2px; position: absolute; top:0; left:0; }
+.kpi-marker { position: absolute; top:-4px; height:12px; width:2px; background:#e05c6e; border-radius:1px; }
+
+/* ── Efficiency ── */
+.eff-dept-block { background: #191b24; border: 1px solid #252836; border-radius: 10px; overflow: hidden; }
+.eff-table { width: 100%; border-collapse: collapse; }
+.eff-table th { font-size: 10px; font-weight: 600; color: #8890b0; padding: 7px 10px; text-align: center; background: #14151e; border-bottom: 1px solid #252836; white-space: nowrap; }
+.eff-table th:first-child { text-align: left; padding-left: 16px; }
+.eff-table td { font-size: 12px; padding: 9px 10px; text-align: center; border-bottom: 1px solid #1d1f2c; vertical-align: middle; color: #d4d8ea; }
+.eff-table td:first-child { text-align: left; padding-left: 16px; font-weight: 500; }
+.eff-table tr:last-child td { border-bottom: none; }
+.eff-table tr:hover td { background: #1c1e2a; }
+.pct-badge { display: inline-flex; flex-direction: column; align-items: center; font-size: 11px; font-weight: 600; line-height: 1.5; }
+.pct-high { color: #e05c6e; }
+.pct-mid  { color: #f4c04a; }
+.pct-low  { color: #2dd4a0; }
+.inv-cell { display: flex; flex-direction: column; gap: 3px; min-width: 220px; }
+.inv-row  { display: flex; align-items: center; gap: 6px; }
+.inv-label { font-size: 10px; color: #545770; width: 68px; flex-shrink: 0; text-align: right; }
+.inv-bar-wrap { flex: 1; height: 8px; background: #252836; border-radius: 3px; overflow: hidden; }
+.inv-bar-fill { height: 100%; border-radius: 3px; }
+.inv-num { font-size: 10px; color: #8890b0; width: 50px; text-align: right; flex-shrink: 0; white-space: nowrap; }
+.inv-c0 { background: #1e3d6e; }
+.inv-c1 { background: #1a6080; }
+.inv-c2 { background: #1a8f7a; }
+.inv-c3 { background: #2dd4a0; }
+.inv-c4 { background: #9b7ef0; }
+
+/* ── Team Analysis ── */
+.team-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; }
+.team-section { background: #191b24; border: 1px solid #252836; border-radius: 10px; overflow: hidden; }
+.team-section-header { padding: 11px 16px; background: #14151e; border-bottom: 1px solid #252836; font-size: 13px; font-weight: 500; color: #eef0f8; }
+.team-section-sub { font-size: 11px; color: #8890b0; margin-left: 8px; font-weight: 400; }
+.team-table { width: 100%; border-collapse: collapse; font-size: 12px; }
+.team-table th { padding: 7px 10px; text-align: center; font-weight: 500; color: #8890b0; background: #14151e; border-bottom: 1px solid #252836; font-size: 11px; }
+.team-table td { padding: 7px 10px; border-bottom: 1px solid #1d1f2c; text-align: center; vertical-align: middle; color: #d4d8ea; }
+.team-table tr:last-child td { border-bottom: none; }
+.team-table tr:hover td { background: #1c1e2a; }
+.team-rank { width: 22px; height: 22px; border-radius: 50%; display: inline-flex; align-items: center; justify-content: center; font-size: 10px; font-weight: 600; }
+.rank-top { background: #162a22; color: #2dd4a0; }
+.rank-bot { background: #2a1520; color: #e05c6e; }
+.rank-mid { background: #1e2030; color: #545770; }
+.eff-badge { display: inline-block; padding: 2px 9px; border-radius: 10px; font-size: 11px; font-weight: 500; }
+.eff-fast { background: #162a22; color: #2dd4a0; }
+.eff-avg  { background: #252018; color: #f4c04a; }
+.eff-slow { background: #2a1520; color: #e05c6e; }
+.name-chip { display: inline-block; width: 28px; height: 28px; border-radius: 50%; font-size: 13px; font-weight: 600; text-align: center; line-height: 28px; }
+.combo-chip { display: inline-flex; gap: 3px; flex-wrap: wrap; justify-content: center; }
+.char-dot { display: inline-block; width: 24px; height: 24px; border-radius: 50%; background: #252836; color: #c0c4d8; font-size: 11px; font-weight: 600; text-align: center; line-height: 24px; }
+.team-note { font-size: 10px; color: #6870a0; padding: 8px 16px; background: #14151e; border-top: 1px solid #252836; }
+.eff-idx-val { font-size: 14px; font-weight: 700; }
+.eff-idx-unit { font-size: 9px; color: #8890b0; }
+
+/* ── Coming soon ── */
+.coming-panel { background: #191b24; border: 1px solid #252836; border-radius: 10px; padding: 56px 24px; display: flex; flex-direction: column; align-items: center; gap: 10px; }
+.cs-label { font-size: 14px; font-weight: 500; color: #a0a4bc; }
+.cs-hint { font-size: 12px; color: #6870a0; text-align: center; line-height: 1.7; }
+</style>
+</head>
+<body>
+
+<div class="topbar">
+  <div class="topbar-brand">盤點中心 <span>管理儀表板</span></div>
+  <div class="nav-tabs">
+    <div class="nav-tab active" data-color="#9b7ef0" id="tab-headcount" onclick="setTab('headcount')">
+      <svg width="14" height="14" viewBox="0 0 16 16" fill="none"><circle cx="5.5" cy="5" r="2.2" stroke="currentColor" stroke-width="1.2"/><path d="M1.5 14c0-2.5 1.8-4 4-4s4 1.5 4 4" stroke="currentColor" stroke-width="1.2" stroke-linecap="round"/><circle cx="11.5" cy="5.5" r="1.7" stroke="currentColor" stroke-width="1.2"/><path d="M11.5 10c2 0 3 1.2 3 4" stroke="currentColor" stroke-width="1.2" stroke-linecap="round"/></svg>
+      各課人力狀況
+    </div>
+    <div class="nav-tab" data-color="#2dd4a0" id="tab-quality" onclick="setTab('quality')">
+      <svg width="14" height="14" viewBox="0 0 16 16" fill="none"><path d="M8 2L9.5 6H14L10.5 8.5L12 12.5L8 10L4 12.5L5.5 8.5L2 6H6.5L8 2Z" stroke="currentColor" stroke-width="1.2"/></svg>
+      盤點品質分析
+    </div>
+    <div class="nav-tab" data-color="#4da8f8" id="tab-efficiency" onclick="setTab('efficiency')">
+      <svg width="14" height="14" viewBox="0 0 16 16" fill="none"><rect x="2" y="9" width="3" height="5" rx="0.6" fill="currentColor"/><rect x="6.5" y="6" width="3" height="8" rx="0.6" fill="currentColor"/><rect x="11" y="3" width="3" height="11" rx="0.6" fill="currentColor"/></svg>
+      盤點效率分析
+    </div>
+    <div class="nav-tab" data-color="#f4874a" id="tab-team" onclick="setTab('team')">
+      <svg width="14" height="14" viewBox="0 0 16 16" fill="none"><circle cx="4.5" cy="5" r="1.8" stroke="currentColor" stroke-width="1.2"/><path d="M1 13c0-2 1.5-3.2 3.5-3.2S8 11 8 13" stroke="currentColor" stroke-width="1.2" stroke-linecap="round"/><circle cx="11.5" cy="5" r="1.8" stroke="currentColor" stroke-width="1.2"/><path d="M8 13c0-2 1.5-3.2 3.5-3.2S15 11 15 13" stroke="currentColor" stroke-width="1.2" stroke-linecap="round"/></svg>
+      小組效率分析
+    </div>
+    <div class="nav-tab" data-color="#f4c04a" id="tab-pnl" onclick="setTab('pnl')">
+      <svg width="14" height="14" viewBox="0 0 16 16" fill="none"><circle cx="8" cy="8" r="6" stroke="currentColor" stroke-width="1.2"/><path d="M8 5V8.5L10.5 10.5" stroke="currentColor" stroke-width="1.2" stroke-linecap="round"/></svg>
+      部門損益分析
+    </div>
+  </div>
+</div>
+
+<!-- 各課人力狀況 -->
+<div class="panel active" id="panel-headcount"></div>
+
+<!-- 盤點品質分析 -->
+<div class="panel" id="panel-quality">
+  <div class="period-bar">
+    <div class="period-label">統計週期</div>
+    <div class="period-tabs" id="quality-period-tabs"></div>
+    <div class="period-range" id="quality-period-range"></div>
+  </div>
+  <div class="legend-row">
+    <div class="legend-item"><div class="leg-dot" style="background:#1D9E75"></div>達標（低於 KPI 50% 以下）</div>
+    <div class="legend-item"><div class="leg-dot" style="background:#EF9F27"></div>注意（KPI 50%～100%）</div>
+    <div class="legend-item"><div class="leg-dot" style="background:#E24B4A"></div>超標（超過 KPI）</div>
+    <div style="margin-left:auto;display:flex;align-items:center;gap:6px;font-size:11px;color:#8890b0"><div class="kpi-dash"></div>KPI 門檻 0.06%</div>
+  </div>
+  <div class="quality-grid" id="quality-grid"></div>
+</div>
+
+<!-- 盤點效率分析 -->
+<div class="panel" id="panel-efficiency">
+  <div class="period-bar">
+    <div class="period-label">統計週期</div>
+    <div class="period-tabs">
+      <div class="period-tab active">115/04/02～04/14</div>
+    </div>
+    <div class="period-range">統計區間：115/04/02 ～ 115/04/14</div>
+  </div>
+  <div class="legend-row">
+    <div class="legend-item"><div class="leg-dot" style="background:#E24B4A"></div>人力偏少佔比偏高（≥35%）</div>
+    <div class="legend-item"><div class="leg-dot" style="background:#EF9F27"></div>中等（20～35%）</div>
+    <div class="legend-item"><div class="leg-dot" style="background:#1D9E75"></div>偏低（&lt;20%）</div>
+    <div style="margin-left:auto;font-size:11px;color:#aaa89f">格式：家數（佔比%）</div>
+  </div>
+  <div id="eff-content"></div>
+</div>
+
+<!-- 小組效率分析 -->
+<div class="panel" id="panel-team">
+  <div class="period-bar">
+    <div class="period-label">課別</div>
+    <div class="period-tabs" id="team-course-tabs"></div>
+    <div class="period-range">統計區間：115/04/02 ～ 115/04/14</div>
+  </div>
+  <div id="team-content"></div>
+</div>
+
+<!-- 部門損益分析 -->
+<div class="panel" id="panel-pnl">
+  <div class="coming-panel">
+    <div class="cs-label">部門損益分析</div>
+    <div class="cs-hint">全部門・一部・二部・業務部</div>
+  </div>
+</div>
+
+<script>
+const KPI = 0.0006;
+const TITLE_ORDER = ['經理','課長','助理高專','資深專員','專員','事務專員','中階助理','初階助理'];
+const SPECIALIST   = new Set(['經理','課長','助理高專','資深專員','專員','事務專員']);
+
+/* <<DASHBOARD_DATA_START>> */
+// ── 品質：最近 4 週資料 ──────────────────────────────────
+const qualityPeriods = [
+  { key:'w1', label:'03/02～03/18', range:'115/03/02 ～ 115/03/18',
+    dept:[
+      {short:'一部',color:'#1D9E75',人數:108,品項率:0.00042,件數率:0.00029,金額率:0.00026},
+      {short:'二部',color:'#378ADD',人數:70, 品項率:0.00028,件數率:0.00029,金額率:0.00026},
+    ],
+    course:[
+      {dept:'一部',name:'北一課',人數:25,品項率:0.00043,件數率:0.00014,金額率:0.00017},
+      {dept:'一部',name:'北二課',人數:19,品項率:0.00040,件數率:0.00035,金額率:0.00024},
+      {dept:'一部',name:'北三課',人數:15,品項率:0.00025,件數率:0.00009,金額率:0.00008},
+      {dept:'一部',name:'北四課',人數:23,品項率:0.00041,件數率:0.00039,金額率:0.00037},
+      {dept:'一部',name:'桃竹課',人數:23,品項率:0.00054,件數率:0.00042,金額率:0.00035},
+      {dept:'二部',name:'台中課',人數:33,品項率:0.00028,件數率:0.00023,金額率:0.00021},
+      {dept:'二部',name:'嘉南課',人數:17,品項率:0.00025,件數率:0.00021,金額率:0.00020},
+      {dept:'二部',name:'高屏課',人數:20,品項率:0.00032,件數率:0.00044,金額率:0.00039},
+    ]
+  },
+  { key:'w2', label:'03/02～04/01', range:'115/03/02 ～ 115/04/01',
+    dept:[
+      {short:'一部',color:'#1D9E75',人數:109,品項率:0.00041,件數率:0.00028,金額率:0.00025},
+      {short:'二部',color:'#378ADD',人數:70, 品項率:0.00028,件數率:0.00028,金額率:0.00026},
+    ],
+    course:[
+      {dept:'一部',name:'北一課',人數:25,品項率:0.00043,件數率:0.00015,金額率:0.00016},
+      {dept:'一部',name:'北二課',人數:19,品項率:0.00040,件數率:0.00027,金額率:0.00020},
+      {dept:'一部',name:'北三課',人數:15,品項率:0.00023,件數率:0.00009,金額率:0.00008},
+      {dept:'一部',name:'北四課',人數:23,品項率:0.00033,件數率:0.00042,金額率:0.00040},
+      {dept:'一部',name:'桃竹課',人數:23,品項率:0.00050,件數率:0.00037,金額率:0.00031},
+      {dept:'二部',name:'台中課',人數:33,品項率:0.00029,件數率:0.00025,金額率:0.00024},
+      {dept:'二部',name:'嘉南課',人數:17,品項率:0.00025,件數率:0.00020,金額率:0.00020},
+      {dept:'二部',name:'高屏課',人數:20,品項率:0.00029,件數率:0.00039,金額率:0.00033},
+    ]
+  },
+  { key:'w3', label:'04/02～04/07', range:'115/04/02 ～ 115/04/07',
+    dept:[
+      {short:'一部',color:'#1D9E75',人數:105,品項率:0.00033,件數率:0.00031,金額率:0.00025},
+      {short:'二部',color:'#378ADD',人數:70, 品項率:0.00027,件數率:0.00025,金額率:0.00020},
+    ],
+    course:[
+      {dept:'一部',name:'北一課',人數:25,品項率:0.00039,件數率:0.00022,金額率:0.00016},
+      {dept:'一部',name:'北二課',人數:18,品項率:0.00034,件數率:0.00024,金額率:0.00024},
+      {dept:'一部',name:'北三課',人數:15,品項率:0.00013,件數率:0.00001,金額率:0.00001},
+      {dept:'一部',name:'北四課',人數:23,品項率:0.00025,件數率:0.00023,金額率:0.00024},
+      {dept:'一部',name:'桃竹課',人數:21,品項率:0.00037,件數率:0.00074,金額率:0.00044},
+      {dept:'二部',name:'台中課',人數:33,品項率:0.00031,件數率:0.00028,金額率:0.00021},
+      {dept:'二部',name:'嘉南課',人數:17,品項率:0.00015,件數率:0.00013,金額率:0.00015},
+      {dept:'二部',name:'高屏課',人數:20,品項率:0.00031,件數率:0.00032,金額率:0.00024},
+    ]
+  },
+  { key:'w4', label:'04/02～04/14', range:'115/04/02 ～ 115/04/14',
+    dept:[
+      {short:'一部',color:'#1D9E75',人數:105,品項率:0.00033,件數率:0.00027,金額率:0.00027},
+      {short:'二部',color:'#378ADD',人數:71, 品項率:0.00027,件數率:0.00030,金額率:0.00025},
+    ],
+    course:[
+      {dept:'一部',name:'北一課',人數:25,品項率:0.00031,件數率:0.00016,金額率:0.00013},
+      {dept:'一部',name:'北二課',人數:18,品項率:0.00027,件數率:0.00026,金額率:0.00028},
+      {dept:'一部',name:'北三課',人數:15,品項率:0.00016,件數率:0.00007,金額率:0.00008},
+      {dept:'一部',name:'北四課',人數:23,品項率:0.00037,件數率:0.00043,金額率:0.00039},
+      {dept:'一部',name:'桃竹課',人數:21,品項率:0.00042,件數率:0.00035,金額率:0.00027},
+      {dept:'二部',name:'台中課',人數:33,品項率:0.00034,件數率:0.00026,金額率:0.00023},
+      {dept:'二部',name:'嘉南課',人數:17,品項率:0.00015,件數率:0.00020,金額率:0.00021},
+      {dept:'二部',name:'高屏課',人數:19,品項率:0.00025,件數率:0.00047,金額率:0.00031},
+    ]
+  },
+];
+
+const deptMeta = {
+  '一部': { fullName:'盤點中心一部', color:'#1D9E75' },
+  '二部': { fullName:'盤點中心二部', color:'#378ADD' },
+};
+
+let currentQPeriod = 'w4'; // 預設顯示最新
+
+// ── 人力資料 ──────────────────────────────────────────
+const HC_DATE = '115/04/14'; // 人力資料截止日期
+const hcData = {
+  '一部': { color:'#1D9E75', type:'field', manager:1, courses:{
+    '北一課':{'課長':1,'助理高專':2,'資深專員':11,'專員':6,'中階助理':6},
+    '北二課':{'課長':1,'助理高專':1,'資深專員':4,'專員':4,'中階助理':7,'初階助理':2},
+    '北三課':{'課長':1,'助理高專':2,'資深專員':2,'專員':6,'事務專員':1,'中階助理':4},
+    '北四課':{'課長':1,'助理高專':1,'資深專員':5,'專員':6,'中階助理':11},
+    '桃竹課':{'課長':1,'助理高專':3,'資深專員':10,'專員':2,'中階助理':4,'初階助理':2},
+  }},
+  '二部': { color:'#378ADD', type:'field', manager:1, courses:{
+    '台中課':{'課長':1,'助理高專':4,'資深專員':12,'專員':7,'事務專員':1,'中階助理':7,'初階助理':2},
+    '嘉南課':{'課長':1,'助理高專':3,'資深專員':6,'專員':2,'中階助理':4,'初階助理':2},
+    '高屏課':{'課長':1,'助理高專':2,'資深專員':7,'專員':5,'中階助理':5},
+  }},
+  '業務部': { color:'#888780', type:'admin', manager:1, courses:{
+    '業務課':    {'課長':1,'資深專員':1,'初階助理':1},
+    '教育訓練課':{'課長':1,'助理高專':1,'資深專員':1},
+  }},
+};
+
+// ── 效率資料（115/04/02～04/14）──────────────────────────
+const effData = {
+  '一部':{ color:'#1D9E75', courses:{
+    '北一課':{total:132,lt3:54, lt3p:40.9,lt4:126,lt4p:95.5,avgPpl:2.64,avgItems:3154,avgInv:1290377,avgMin:167.1, inv:{'<45萬':{n:1,p:0.8},'45~90萬':{n:13,p:9.8},'90~140萬':{n:66,p:50.0},'140~200萬':{n:50,p:37.9},'200萬以上':{n:2,p:1.5}}},
+    '北二課':{total:99, lt3:51, lt3p:51.5,lt4:96, lt4p:97.0,avgPpl:2.52,avgItems:3372,avgInv:1408431,avgMin:163.3, inv:{'<45萬':{n:0,p:0.0},'45~90萬':{n:3,p:3.0},'90~140萬':{n:52,p:52.5},'140~200萬':{n:43,p:43.4},'200萬以上':{n:1,p:1.0}}},
+    '北三課':{total:66, lt3:15, lt3p:22.7,lt4:60, lt4p:90.9,avgPpl:2.86,avgItems:3439,avgInv:1436758,avgMin:172.1, inv:{'<45萬':{n:0,p:0.0},'45~90萬':{n:2,p:3.0},'90~140萬':{n:28,p:42.4},'140~200萬':{n:34,p:51.5},'200萬以上':{n:2,p:3.0}}},
+    '北四課':{total:103,lt3:30, lt3p:29.1,lt4:98, lt4p:95.1,avgPpl:2.76,avgItems:3583,avgInv:1425853,avgMin:165.7, inv:{'<45萬':{n:0,p:0.0},'45~90萬':{n:4,p:3.9},'90~140萬':{n:45,p:43.7},'140~200萬':{n:53,p:51.5},'200萬以上':{n:1,p:1.0}}},
+    '桃竹課':{total:98, lt3:33, lt3p:33.7,lt4:96, lt4p:98.0,avgPpl:2.70,avgItems:3568,avgInv:1427832,avgMin:169.4, inv:{'<45萬':{n:0,p:0.0},'45~90萬':{n:3,p:3.1},'90~140萬':{n:35,p:35.7},'140~200萬':{n:60,p:61.2},'200萬以上':{n:0,p:0.0}}},
+  }},
+  '二部':{ color:'#378ADD', courses:{
+    '台中課':{total:174,lt3:63, lt3p:36.2,lt4:174,lt4p:100.0,avgPpl:2.64,avgItems:3448,avgInv:1397743,avgMin:170.4, inv:{'<45萬':{n:0,p:0.0},'45~90萬':{n:5,p:2.9},'90~140萬':{n:92,p:52.9},'140~200萬':{n:75,p:43.1},'200萬以上':{n:2,p:1.1}}},
+    '嘉南課':{total:86, lt3:20, lt3p:23.3,lt4:86, lt4p:100.0,avgPpl:2.77,avgItems:3547,avgInv:1487376,avgMin:184.1, inv:{'<45萬':{n:0,p:0.0},'45~90萬':{n:2,p:2.3},'90~140萬':{n:24,p:27.9},'140~200萬':{n:58,p:67.4},'200萬以上':{n:2,p:2.3}}},
+    '高屏課':{total:100,lt3:39, lt3p:39.0,lt4:96, lt4p:96.0,avgPpl:2.65,avgItems:3368,avgInv:1385222,avgMin:196.7, inv:{'<45萬':{n:0,p:0.0},'45~90萬':{n:10,p:10.0},'90~140萬':{n:33,p:33.0},'140~200萬':{n:56,p:56.0},'200萬以上':{n:1,p:1.0}}},
+  }},
+};
+/* <<DASHBOARD_DATA_END>> */
+
+// ── 個人盤點品質資料（115/04/02～04/14）─────────────────────
+const qualityPersonData = [
+  {dept:'一部',course:'北一課',name:'張絜涵',title:'助理高專',stores:13,avgItem:1019,avgQty:6929,avgAmt:516418,errItem:0.031,errQty:0.034,errAmt:0.015},
+  {dept:'一部',course:'北一課',name:'蔡明達',title:'助理高專',stores:12,avgItem:1048,avgQty:6178,avgAmt:486866,errItem:0.064,errQty:0.085,errAmt:0.014},
+  {dept:'一部',course:'北一課',name:'張昭儀',title:'資深專員',stores:14,avgItem:1269,avgQty:7049,avgAmt:484300,errItem:0.057,errQty:0.013,errAmt:0.015},
+  {dept:'一部',course:'北一課',name:'劉育青',title:'資深專員',stores:14,avgItem:1225,avgQty:7814,avgAmt:478970,errItem:0.035,errQty:0.005,errAmt:0.007},
+  {dept:'一部',course:'北一課',name:'吳尚諭',title:'資深專員',stores:12,avgItem:1040,avgQty:7317,avgAmt:482551,errItem:0.033,errQty:0.000,errAmt:0.000},
+  {dept:'一部',course:'北一課',name:'盧欣怡',title:'資深專員',stores:13,avgItem:1278,avgQty:7316,avgAmt:543195,errItem:0.037,errQty:0.002,errAmt:0.002},
+  {dept:'一部',course:'北一課',name:'邱筱雯',title:'資深專員',stores:13,avgItem:1178,avgQty:6015,avgAmt:422215,errItem:0.014,errQty:0.000,errAmt:0.000},
+  {dept:'一部',course:'北一課',name:'謝孟純',title:'資深專員',stores:11,avgItem:1125,avgQty:7331,avgAmt:488409,errItem:0.017,errQty:0.018,errAmt:0.013},
+  {dept:'一部',course:'北一課',name:'楊采嫺',title:'資深專員',stores:17,avgItem:1069,avgQty:6267,avgAmt:512992,errItem:0.000,errQty:0.000,errAmt:0.000},
+  {dept:'一部',course:'北一課',name:'邱秀枝',title:'資深專員',stores:14,avgItem:1057,avgQty:7725,avgAmt:448686,errItem:0.068,errQty:0.037,errAmt:0.021},
+  {dept:'一部',course:'北一課',name:'何芝穎',title:'資深專員',stores:13,avgItem:1424,avgQty:7953,avgAmt:545282,errItem:0.011,errQty:0.003,errAmt:0.005},
+  {dept:'一部',course:'北一課',name:'許綉敏',title:'資深專員',stores:12,avgItem:915,avgQty:6534,avgAmt:476860,errItem:0.073,errQty:0.002,errAmt:0.004},
+  {dept:'一部',course:'北一課',name:'馬雅憶',title:'資深專員',stores:4,avgItem:1645,avgQty:8348,avgAmt:592847,errItem:0.061,errQty:0.000,errAmt:0.002},
+  {dept:'一部',course:'北一課',name:'黃于嘉',title:'專員',stores:10,avgItem:1223,avgQty:7153,avgAmt:518490,errItem:0.033,errQty:0.012,errAmt:0.008},
+  {dept:'一部',course:'北一課',name:'董又禎',title:'專員',stores:16,avgItem:1222,avgQty:6297,avgAmt:485662,errItem:0.031,errQty:0.035,errAmt:0.021},
+  {dept:'一部',course:'北一課',name:'陳佩君',title:'專員',stores:12,avgItem:1177,avgQty:6659,avgAmt:498453,errItem:0.000,errQty:0.000,errAmt:0.000},
+  {dept:'一部',course:'北一課',name:'朱雅卉',title:'專員',stores:12,avgItem:1123,avgQty:6657,avgAmt:470835,errItem:0.045,errQty:0.014,errAmt:0.044},
+  {dept:'一部',course:'北一課',name:'吳承家',title:'專員',stores:14,avgItem:1310,avgQty:7692,avgAmt:535213,errItem:0.000,errQty:0.056,errAmt:0.043},
+  {dept:'一部',course:'北一課',name:'李俊廷',title:'專員',stores:10,avgItem:1207,avgQty:7558,avgAmt:564090,errItem:0.034,errQty:0.010,errAmt:0.006},
+  {dept:'一部',course:'北一課',name:'陳怡珊',title:'中階助理',stores:16,avgItem:1442,avgQty:7863,avgAmt:506646,errItem:0.027,errQty:0.013,errAmt:0.016},
+  {dept:'一部',course:'北一課',name:'林竣義',title:'中階助理',stores:13,avgItem:1336,avgQty:8217,avgAmt:511573,errItem:0.000,errQty:0.000,errAmt:0.000},
+  {dept:'一部',course:'北一課',name:'吳佳祺',title:'中階助理',stores:17,avgItem:1130,avgQty:8951,avgAmt:474397,errItem:0.000,errQty:0.014,errAmt:0.027},
+  {dept:'一部',course:'北一課',name:'黃祺雅',title:'中階助理',stores:16,avgItem:1162,avgQty:7015,avgAmt:437994,errItem:0.076,errQty:0.006,errAmt:0.008},
+  {dept:'一部',course:'北一課',name:'李姵瑩',title:'中階助理',stores:16,avgItem:1292,avgQty:8129,avgAmt:473212,errItem:0.030,errQty:0.032,errAmt:0.027},
+  {dept:'一部',course:'北一課',name:'蔡羽姍',title:'中階助理',stores:16,avgItem:1215,avgQty:7392,avgAmt:454429,errItem:0.042,errQty:0.004,errAmt:0.003},
+  {dept:'一部',course:'北二課',name:'張可綸',title:'助理高專',stores:14,avgItem:1264,avgQty:7937,avgAmt:534120,errItem:0.000,errQty:0.036,errAmt:0.030},
+  {dept:'一部',course:'北二課',name:'姚宏頴',title:'資深專員',stores:10,avgItem:1463,avgQty:8345,avgAmt:579485,errItem:0.069,errQty:0.011,errAmt:0.025},
+  {dept:'一部',course:'北二課',name:'陳渝淇',title:'資深專員',stores:14,avgItem:1577,avgQty:10579,avgAmt:663527,errItem:0.000,errQty:0.000,errAmt:0.000},
+  {dept:'一部',course:'北二課',name:'孫于婷',title:'資深專員',stores:18,avgItem:1575,avgQty:9681,avgAmt:657144,errItem:0.029,errQty:0.034,errAmt:0.030},
+  {dept:'一部',course:'北二課',name:'陳怡安',title:'資深專員',stores:8,avgItem:1098,avgQty:8041,avgAmt:510864,errItem:0.023,errQty:0.025,errAmt:0.020},
+  {dept:'一部',course:'北二課',name:'陳儀真',title:'專員',stores:10,avgItem:1303,avgQty:8300,avgAmt:539941,errItem:0.000,errQty:0.034,errAmt:0.030},
+  {dept:'一部',course:'北二課',name:'郭于菁',title:'專員',stores:14,avgItem:1352,avgQty:8602,avgAmt:614251,errItem:0.011,errQty:0.001,errAmt:0.037},
+  {dept:'一部',course:'北二課',name:'潘怡靜',title:'專員',stores:10,avgItem:1545,avgQty:8137,avgAmt:645027,errItem:0.000,errQty:0.000,errAmt:0.000},
+  {dept:'一部',course:'北二課',name:'蔡仙雯',title:'專員',stores:4,avgItem:1388,avgQty:11438,avgAmt:505243,errItem:0.037,errQty:0.138,errAmt:0.118},
+  {dept:'一部',course:'北二課',name:'劉振凱',title:'中階助理',stores:16,avgItem:1361,avgQty:9116,avgAmt:668633,errItem:0.065,errQty:0.031,errAmt:0.017},
+  {dept:'一部',course:'北二課',name:'呂玉嬋',title:'中階助理',stores:16,avgItem:1274,avgQty:7892,avgAmt:537361,errItem:0.040,errQty:0.005,errAmt:0.003},
+  {dept:'一部',course:'北二課',name:'黃鈺庭',title:'中階助理',stores:14,avgItem:1166,avgQty:6417,avgAmt:414854,errItem:0.074,errQty:0.094,errAmt:0.132},
+  {dept:'一部',course:'北二課',name:'陳珍儀',title:'中階助理',stores:18,avgItem:1051,avgQty:7213,avgAmt:509344,errItem:0.022,errQty:0.027,errAmt:0.030},
+  {dept:'一部',course:'北二課',name:'張雅淇',title:'中階助理',stores:18,avgItem:1178,avgQty:8281,avgAmt:507994,errItem:0.038,errQty:0.023,errAmt:0.027},
+  {dept:'一部',course:'北二課',name:'孫煥軒',title:'中階助理',stores:14,avgItem:1276,avgQty:8887,avgAmt:548654,errItem:0.012,errQty:0.037,errAmt:0.023},
+  {dept:'一部',course:'北二課',name:'游秋瑜',title:'中階助理',stores:14,avgItem:1136,avgQty:6892,avgAmt:489384,errItem:0.007,errQty:0.025,errAmt:0.040},
+  {dept:'一部',course:'北二課',name:'林美君',title:'初階助理',stores:16,avgItem:1424,avgQty:10014,avgAmt:514618,errItem:0.018,errQty:0.000,errAmt:0.004},
+  {dept:'一部',course:'北二課',name:'吳佳容',title:'初階助理',stores:12,avgItem:897,avgQty:4960,avgAmt:299858,errItem:0.056,errQty:0.027,errAmt:0.040},
+  {dept:'一部',course:'北二課(不計入)',name:'黃稚雅',title:'初階助理',stores:14,avgItem:948,avgQty:5346,avgAmt:308019,errItem:0.106,errQty:0.017,errAmt:0.017},
+  {dept:'一部',course:'北三課',name:'王詩婷',title:'助理高專',stores:11,avgItem:1317,avgQty:7418,avgAmt:558466,errItem:0.056,errQty:0.003,errAmt:0.008},
+  {dept:'一部',course:'北三課',name:'吳凱文',title:'助理高專',stores:11,avgItem:1310,avgQty:9298,avgAmt:519181,errItem:0.028,errQty:0.023,errAmt:0.035},
+  {dept:'一部',course:'北三課',name:'林翊桀',title:'資深專員',stores:11,avgItem:1119,avgQty:7886,avgAmt:484508,errItem:0.000,errQty:0.014,errAmt:0.011},
+  {dept:'一部',course:'北三課',name:'李佩芳',title:'資深專員',stores:12,avgItem:1336,avgQty:7271,avgAmt:544559,errItem:0.000,errQty:0.000,errAmt:0.000},
+  {dept:'一部',course:'北三課',name:'連玟雅',title:'專員',stores:13,avgItem:1373,avgQty:7792,avgAmt:534390,errItem:0.012,errQty:0.033,errAmt:0.027},
+  {dept:'一部',course:'北三課',name:'王雨柔',title:'專員',stores:15,avgItem:1207,avgQty:7436,avgAmt:502108,errItem:0.000,errQty:0.002,errAmt:0.002},
+  {dept:'一部',course:'北三課',name:'李姿儀',title:'專員',stores:15,avgItem:1268,avgQty:8831,avgAmt:571082,errItem:0.000,errQty:0.007,errAmt:0.007},
+  {dept:'一部',course:'北三課',name:'陳宛吟',title:'專員',stores:14,avgItem:1252,avgQty:8000,avgAmt:588777,errItem:0.000,errQty:0.000,errAmt:0.000},
+  {dept:'一部',course:'北三課',name:'許翔宇',title:'專員',stores:9,avgItem:916,avgQty:6509,avgAmt:423920,errItem:0.025,errQty:0.000,errAmt:0.000},
+  {dept:'一部',course:'北三課',name:'郭亞涵',title:'專員',stores:7,avgItem:1521,avgQty:8766,avgAmt:626898,errItem:0.038,errQty:0.000,errAmt:0.000},
+  {dept:'一部',course:'北三課',name:'蔡旻宸',title:'事務專員',stores:15,avgItem:1078,avgQty:7079,avgAmt:461495,errItem:0.038,errQty:0.010,errAmt:0.009},
+  {dept:'一部',course:'北三課',name:'陳建元',title:'中階助理',stores:4,avgItem:947,avgQty:6570,avgAmt:375976,errItem:0.053,errQty:0.000,errAmt:0.000},
+  {dept:'一部',course:'北三課',name:'高子婷',title:'中階助理',stores:12,avgItem:1134,avgQty:6719,avgAmt:415709,errItem:0.000,errQty:0.000,errAmt:0.000},
+  {dept:'一部',course:'北三課',name:'陳旻吟',title:'中階助理',stores:16,avgItem:1083,avgQty:6457,avgAmt:428131,errItem:0.012,errQty:0.001,errAmt:0.006},
+  {dept:'一部',course:'北三課',name:'邱姵菁',title:'中階助理',stores:15,avgItem:1181,avgQty:7597,avgAmt:504915,errItem:0.023,errQty:0.001,errAmt:0.002},
+  {dept:'一部',course:'北四課',name:'蘇姵菁',title:'助理高專',stores:15,avgItem:1104,avgQty:7035,avgAmt:429972,errItem:0.049,errQty:0.001,errAmt:0.014},
+  {dept:'一部',course:'北四課',name:'陳俊宇',title:'資深專員',stores:9,avgItem:1030,avgQty:6371,avgAmt:426017,errItem:0.065,errQty:0.074,errAmt:0.120},
+  {dept:'一部',course:'北四課',name:'游慧美',title:'資深專員',stores:11,avgItem:1479,avgQty:10383,avgAmt:600859,errItem:0.050,errQty:0.027,errAmt:0.051},
+  {dept:'一部',course:'北四課',name:'施欣妤',title:'資深專員',stores:11,avgItem:1511,avgQty:8116,avgAmt:581401,errItem:0.000,errQty:0.045,errAmt:0.051},
+  {dept:'一部',course:'北四課',name:'楊子霈',title:'資深專員',stores:12,avgItem:1460,avgQty:8750,avgAmt:576365,errItem:0.046,errQty:0.061,errAmt:0.031},
+  {dept:'一部',course:'北四課',name:'曾宣蓉',title:'資深專員',stores:10,avgItem:1391,avgQty:8406,avgAmt:597469,errItem:0.015,errQty:0.049,errAmt:0.044},
+  {dept:'一部',course:'北四課',name:'胡紫歆',title:'專員',stores:9,avgItem:1130,avgQty:6780,avgAmt:475299,errItem:0.059,errQty:0.025,errAmt:0.020},
+  {dept:'一部',course:'北四課',name:'賴怡華',title:'專員',stores:10,avgItem:1208,avgQty:7496,avgAmt:460492,errItem:0.034,errQty:0.023,errAmt:0.036},
+  {dept:'一部',course:'北四課',name:'姚妏姍',title:'專員',stores:12,avgItem:1475,avgQty:10218,avgAmt:579494,errItem:0.012,errQty:0.036,errAmt:0.033},
+  {dept:'一部',course:'北四課',name:'黃思媛',title:'專員',stores:12,avgItem:1404,avgQty:7648,avgAmt:571277,errItem:0.000,errQty:0.047,errAmt:0.022},
+  {dept:'一部',course:'北四課',name:'黃慧儀',title:'專員',stores:13,avgItem:1360,avgQty:7997,avgAmt:560642,errItem:0.000,errQty:0.000,errAmt:0.000},
+  {dept:'一部',course:'北四課',name:'李怡萱',title:'專員',stores:14,avgItem:1295,avgQty:8626,avgAmt:516431,errItem:0.034,errQty:0.016,errAmt:0.027},
+  {dept:'一部',course:'北四課',name:'吳嘉玲',title:'中階助理',stores:15,avgItem:1355,avgQty:7657,avgAmt:590239,errItem:0.000,errQty:0.016,errAmt:0.006},
+  {dept:'一部',course:'北四課',name:'陳子婷',title:'中階助理',stores:14,avgItem:1173,avgQty:7199,avgAmt:466069,errItem:0.037,errQty:0.161,errAmt:0.042},
+  {dept:'一部',course:'北四課',name:'魏祥禮',title:'中階助理',stores:15,avgItem:1121,avgQty:6262,avgAmt:404822,errItem:0.060,errQty:0.079,errAmt:0.084},
+  {dept:'一部',course:'北四課',name:'曾翊瑛',title:'中階助理',stores:6,avgItem:1114,avgQty:5993,avgAmt:460692,errItem:0.150,errQty:0.028,errAmt:0.043},
+  {dept:'一部',course:'北四課',name:'陳欣汝',title:'中階助理',stores:12,avgItem:1133,avgQty:6603,avgAmt:477314,errItem:0.111,errQty:0.031,errAmt:0.042},
+  {dept:'一部',course:'北四課',name:'邱雅婷',title:'中階助理',stores:14,avgItem:1357,avgQty:7866,avgAmt:492020,errItem:0.074,errQty:0.023,errAmt:0.055},
+  {dept:'一部',course:'北四課',name:'廖秀晏',title:'中階助理',stores:14,avgItem:1179,avgQty:7354,avgAmt:431154,errItem:0.049,errQty:0.030,errAmt:0.029},
+  {dept:'一部',course:'北四課',name:'張惠雅',title:'中階助理',stores:11,avgItem:1171,avgQty:6356,avgAmt:385110,errItem:0.032,errQty:0.058,errAmt:0.125},
+  {dept:'一部',course:'北四課',name:'吳佳錡',title:'中階助理',stores:15,avgItem:1479,avgQty:8272,avgAmt:624661,errItem:0.055,errQty:0.079,errAmt:0.041},
+  {dept:'一部',course:'北四課',name:'陳穎宣',title:'中階助理',stores:13,avgItem:1497,avgQty:9996,avgAmt:618388,errItem:0.011,errQty:0.007,errAmt:0.014},
+  {dept:'一部',course:'北四課',name:'張育嘉',title:'中階助理',stores:13,avgItem:1094,avgQty:6393,avgAmt:492060,errItem:0.000,errQty:0.102,errAmt:0.048},
+  {dept:'一部',course:'北四課(不計入)',name:'胡家瑀',title:'初階助理',stores:14,avgItem:714,avgQty:3363,avgAmt:224254,errItem:0.121,errQty:0.241,errAmt:0.663},
+  {dept:'一部',course:'桃竹課',name:'卜淑貞',title:'助理高專',stores:14,avgItem:1323,avgQty:7488,avgAmt:518659,errItem:0.022,errQty:0.017,errAmt:0.007},
+  {dept:'一部',course:'桃竹課',name:'徐譽玲',title:'助理高專',stores:11,avgItem:1490,avgQty:7957,avgAmt:585707,errItem:0.049,errQty:0.030,errAmt:0.014},
+  {dept:'一部',course:'桃竹課',name:'柯惠華',title:'助理高專',stores:12,avgItem:1254,avgQty:7784,avgAmt:495215,errItem:0.027,errQty:0.030,errAmt:0.020},
+  {dept:'一部',course:'桃竹課',name:'游雅慧',title:'資深專員',stores:10,avgItem:1244,avgQty:7339,avgAmt:538021,errItem:0.033,errQty:0.022,errAmt:0.024},
+  {dept:'一部',course:'桃竹課',name:'劉乾弘',title:'資深專員',stores:9,avgItem:1306,avgQty:7679,avgAmt:539708,errItem:0.069,errQty:0.029,errAmt:0.019},
+  {dept:'一部',course:'桃竹課',name:'邱佳雯',title:'資深專員',stores:12,avgItem:1313,avgQty:7861,avgAmt:509098,errItem:0.026,errQty:0.010,errAmt:0.011},
+  {dept:'一部',course:'桃竹課',name:'詹淑珍',title:'資深專員',stores:14,avgItem:1330,avgQty:8362,avgAmt:570011,errItem:0.054,errQty:0.011,errAmt:0.011},
+  {dept:'一部',course:'桃竹課',name:'陳琬璇',title:'資深專員',stores:11,avgItem:1277,avgQty:7769,avgAmt:540441,errItem:0.029,errQty:0.005,errAmt:0.017},
+  {dept:'一部',course:'桃竹課',name:'黃安琪',title:'資深專員',stores:6,avgItem:1097,avgQty:9094,avgAmt:529015,errItem:0.031,errQty:0.002,errAmt:0.002},
+  {dept:'一部',course:'桃竹課',name:'楊偲婷',title:'資深專員',stores:11,avgItem:1231,avgQty:7002,avgAmt:456908,errItem:0.015,errQty:0.023,errAmt:0.030},
+  {dept:'一部',course:'桃竹課',name:'黃瑋君',title:'資深專員',stores:16,avgItem:1355,avgQty:7296,avgAmt:483569,errItem:0.010,errQty:0.030,errAmt:0.035},
+  {dept:'一部',course:'桃竹課',name:'馮蕾蕾',title:'資深專員',stores:15,avgItem:1431,avgQty:8346,avgAmt:538074,errItem:0.019,errQty:0.020,errAmt:0.018},
+  {dept:'一部',course:'桃竹課',name:'蔡鎮宇',title:'資深專員',stores:11,avgItem:1301,avgQty:8346,avgAmt:550438,errItem:0.014,errQty:0.027,errAmt:0.057},
+  {dept:'一部',course:'桃竹課',name:'鍾秀蓉',title:'專員',stores:15,avgItem:1140,avgQty:7947,avgAmt:443945,errItem:0.012,errQty:0.006,errAmt:0.006},
+  {dept:'一部',course:'桃竹課',name:'黃孟娸',title:'專員',stores:8,avgItem:1208,avgQty:7554,avgAmt:550482,errItem:0.063,errQty:0.004,errAmt:0.003},
+  {dept:'一部',course:'桃竹課',name:'陳雅茜',title:'中階助理',stores:15,avgItem:1178,avgQty:7972,avgAmt:557206,errItem:0.114,errQty:0.256,errAmt:0.113},
+  {dept:'一部',course:'桃竹課',name:'林玟妤',title:'中階助理',stores:11,avgItem:1263,avgQty:8835,avgAmt:588102,errItem:0.051,errQty:0.002,errAmt:0.012},
+  {dept:'一部',course:'桃竹課',name:'李欣梅',title:'中階助理',stores:14,avgItem:1347,avgQty:8205,avgAmt:526445,errItem:0.054,errQty:0.039,errAmt:0.024},
+  {dept:'一部',course:'桃竹課',name:'彭亭育',title:'中階助理',stores:15,avgItem:1251,avgQty:8011,avgAmt:521850,errItem:0.075,errQty:0.028,errAmt:0.032},
+  {dept:'一部',course:'桃竹課',name:'方亭予',title:'初階助理',stores:12,avgItem:1386,avgQty:7623,avgAmt:478650,errItem:0.085,errQty:0.052,errAmt:0.055},
+  {dept:'一部',course:'桃竹課',name:'蘇于倢',title:'初階助理',stores:14,avgItem:1078,avgQty:7018,avgAmt:377410,errItem:0.040,errQty:0.025,errAmt:0.027},
+  {dept:'一部',course:'桃竹課(不計入)',name:'陳俞如',title:'初階助理',stores:14,avgItem:864,avgQty:5695,avgAmt:252605,errItem:0.050,errQty:0.028,errAmt:0.097},
+  {dept:'二部',course:'台中課',name:'林沛貞',title:'助理高專',stores:13,avgItem:1345,avgQty:7362,avgAmt:469327,errItem:0.023,errQty:0.052,errAmt:0.037},
+  {dept:'二部',course:'台中課',name:'楊莉萍',title:'助理高專',stores:13,avgItem:1396,avgQty:8645,avgAmt:575858,errItem:0.023,errQty:0.027,errAmt:0.017},
+  {dept:'二部',course:'台中課',name:'吳嘉怡',title:'助理高專',stores:14,avgItem:1124,avgQty:8115,avgAmt:554996,errItem:0.026,errQty:0.002,errAmt:0.006},
+  {dept:'二部',course:'台中課',name:'唐敏琇',title:'助理高專',stores:16,avgItem:1265,avgQty:6467,avgAmt:381636,errItem:0.010,errQty:0.006,errAmt:0.006},
+  {dept:'二部',course:'台中課',name:'游淑美',title:'資深專員',stores:16,avgItem:1290,avgQty:7535,avgAmt:424957,errItem:0.010,errQty:0.009,errAmt:0.006},
+  {dept:'二部',course:'台中課',name:'黃婉婷',title:'資深專員',stores:16,avgItem:1392,avgQty:9744,avgAmt:602984,errItem:0.018,errQty:0.035,errAmt:0.030},
+  {dept:'二部',course:'台中課',name:'巫姿儀',title:'資深專員',stores:14,avgItem:1255,avgQty:6727,avgAmt:473086,errItem:0.035,errQty:0.002,errAmt:0.002},
+  {dept:'二部',course:'台中課',name:'溫欣潔',title:'資深專員',stores:9,avgItem:1490,avgQty:7710,avgAmt:460597,errItem:0.000,errQty:0.003,errAmt:0.015},
+  {dept:'二部',course:'台中課',name:'張雅淳',title:'資深專員',stores:16,avgItem:1393,avgQty:7770,avgAmt:530271,errItem:0.045,errQty:0.040,errAmt:0.029},
+  {dept:'二部',course:'台中課',name:'張雅婷',title:'資深專員',stores:16,avgItem:1384,avgQty:7705,avgAmt:531501,errItem:0.019,errQty:0.014,errAmt:0.029},
+  {dept:'二部',course:'台中課',name:'張家瑄',title:'資深專員',stores:10,avgItem:1059,avgQty:10381,avgAmt:532607,errItem:0.038,errQty:0.000,errAmt:0.000},
+  {dept:'二部',course:'台中課',name:'周佩誼',title:'資深專員',stores:14,avgItem:1630,avgQty:10169,avgAmt:717845,errItem:0.053,errQty:0.017,errAmt:0.023},
+  {dept:'二部',course:'台中課',name:'姚雅瀞',title:'資深專員',stores:14,avgItem:1316,avgQty:8145,avgAmt:575439,errItem:0.066,errQty:0.037,errAmt:0.023},
+  {dept:'二部',course:'台中課',name:'王沛庭',title:'資深專員',stores:12,avgItem:1210,avgQty:7608,avgAmt:502685,errItem:0.069,errQty:0.044,errAmt:0.074},
+  {dept:'二部',course:'台中課',name:'方宣喬',title:'資深專員',stores:15,avgItem:1310,avgQty:11092,avgAmt:654900,errItem:0.062,errQty:0.048,errAmt:0.036},
+  {dept:'二部',course:'台中課',name:'張妤甄',title:'資深專員',stores:6,avgItem:1435,avgQty:7761,avgAmt:498861,errItem:0.024,errQty:0.037,errAmt:0.040},
+  {dept:'二部',course:'台中課',name:'石宜華',title:'專員',stores:10,avgItem:1221,avgQty:7067,avgAmt:416200,errItem:0.033,errQty:0.000,errAmt:0.000},
+  {dept:'二部',course:'台中課',name:'謝育汝',title:'專員',stores:16,avgItem:1446,avgQty:8466,avgAmt:577873,errItem:0.035,errQty:0.013,errAmt:0.020},
+  {dept:'二部',course:'台中課',name:'洪棠雅',title:'專員',stores:16,avgItem:1538,avgQty:8635,avgAmt:511672,errItem:0.017,errQty:0.034,errAmt:0.029},
+  {dept:'二部',course:'台中課',name:'李洹',title:'專員',stores:16,avgItem:1333,avgQty:10511,avgAmt:693725,errItem:0.057,errQty:0.011,errAmt:0.023},
+  {dept:'二部',course:'台中課',name:'陳思涵',title:'專員',stores:14,avgItem:1429,avgQty:8082,avgAmt:515804,errItem:0.010,errQty:0.023,errAmt:0.015},
+  {dept:'二部',course:'台中課',name:'曾子芃',title:'專員',stores:16,avgItem:1407,avgQty:9681,avgAmt:653368,errItem:0.032,errQty:0.008,errAmt:0.012},
+  {dept:'二部',course:'台中課',name:'蕭宇瑄',title:'專員',stores:13,avgItem:1293,avgQty:8017,avgAmt:520295,errItem:0.024,errQty:0.034,errAmt:0.024},
+  {dept:'二部',course:'台中課',name:'劉彥妤',title:'事務專員',stores:12,avgItem:1344,avgQty:6947,avgAmt:419581,errItem:0.056,errQty:0.112,errAmt:0.054},
+  {dept:'二部',course:'台中課',name:'賴雯蓉',title:'中階助理',stores:11,avgItem:1108,avgQty:8493,avgAmt:581496,errItem:0.017,errQty:0.009,errAmt:0.011},
+  {dept:'二部',course:'台中課',name:'郭彥德',title:'中階助理',stores:15,avgItem:1162,avgQty:7755,avgAmt:421827,errItem:0.023,errQty:0.038,errAmt:0.032},
+  {dept:'二部',course:'台中課',name:'趙思綺',title:'中階助理',stores:16,avgItem:1130,avgQty:8544,avgAmt:507304,errItem:0.039,errQty:0.036,errAmt:0.027},
+  {dept:'二部',course:'台中課',name:'宋韋築',title:'中階助理',stores:16,avgItem:1254,avgQty:8908,avgAmt:595739,errItem:0.040,errQty:0.021,errAmt:0.012},
+  {dept:'二部',course:'台中課',name:'黃慧如',title:'中階助理',stores:2,avgItem:1196,avgQty:7279,avgAmt:522399,errItem:0.000,errQty:0.000,errAmt:0.000},
+  {dept:'二部',course:'台中課',name:'黃彩涵',title:'中階助理',stores:16,avgItem:1217,avgQty:9648,avgAmt:637773,errItem:0.052,errQty:0.031,errAmt:0.029},
+  {dept:'二部',course:'台中課',name:'黃意雯',title:'中階助理',stores:16,avgItem:1012,avgQty:8493,avgAmt:453252,errItem:0.038,errQty:0.056,errAmt:0.036},
+  {dept:'二部',course:'台中課',name:'陳沛瑜',title:'初階助理',stores:14,avgItem:1313,avgQty:7617,avgAmt:434196,errItem:0.055,errQty:0.018,errAmt:0.022},
+  {dept:'二部',course:'台中課',name:'廖梓涵',title:'初階助理',stores:15,avgItem:1189,avgQty:6558,avgAmt:424949,errItem:0.023,errQty:0.024,errAmt:0.026},
+  {dept:'二部',course:'嘉南課',name:'楊富源',title:'助理高專',stores:11,avgItem:1229,avgQty:9680,avgAmt:673830,errItem:0.015,errQty:0.009,errAmt:0.031},
+  {dept:'二部',course:'嘉南課',name:'王麗雯',title:'助理高專',stores:14,avgItem:1334,avgQty:9575,avgAmt:589228,errItem:0.011,errQty:0.006,errAmt:0.010},
+  {dept:'二部',course:'嘉南課',name:'吳雅涵',title:'助理高專',stores:14,avgItem:1633,avgQty:9876,avgAmt:678268,errItem:0.000,errQty:0.025,errAmt:0.010},
+  {dept:'二部',course:'嘉南課',name:'謝依秀',title:'資深專員',stores:14,avgItem:1239,avgQty:8054,avgAmt:498387,errItem:0.000,errQty:0.037,errAmt:0.039},
+  {dept:'二部',course:'嘉南課',name:'黃心怡',title:'資深專員',stores:14,avgItem:1086,avgQty:8496,avgAmt:671469,errItem:0.014,errQty:0.000,errAmt:0.002},
+  {dept:'二部',course:'嘉南課',name:'林佳儀',title:'資深專員',stores:11,avgItem:1266,avgQty:8121,avgAmt:564974,errItem:0.000,errQty:0.006,errAmt:0.009},
+  {dept:'二部',course:'嘉南課',name:'張瑜方',title:'資深專員',stores:14,avgItem:1374,avgQty:7885,avgAmt:554769,errItem:0.000,errQty:0.000,errAmt:0.000},
+  {dept:'二部',course:'嘉南課',name:'吳珮如',title:'資深專員',stores:12,avgItem:1253,avgQty:8918,avgAmt:593893,errItem:0.014,errQty:0.015,errAmt:0.020},
+  {dept:'二部',course:'嘉南課',name:'楊嘉琪',title:'資深專員',stores:12,avgItem:1358,avgQty:8383,avgAmt:552820,errItem:0.013,errQty:0.002,errAmt:0.002},
+  {dept:'二部',course:'嘉南課',name:'呂貞儀',title:'專員',stores:12,avgItem:1247,avgQty:9311,avgAmt:677177,errItem:0.014,errQty:0.035,errAmt:0.041},
+  {dept:'二部',course:'嘉南課',name:'陳韋如',title:'專員',stores:15,avgItem:1191,avgQty:8885,avgAmt:561185,errItem:0.034,errQty:0.028,errAmt:0.007},
+  {dept:'二部',course:'嘉南課',name:'莊雯琁',title:'中階助理',stores:14,avgItem:1172,avgQty:7329,avgAmt:472716,errItem:0.013,errQty:0.026,errAmt:0.009},
+  {dept:'二部',course:'嘉南課',name:'蔣宛芝',title:'中階助理',stores:14,avgItem:1184,avgQty:8654,avgAmt:464341,errItem:0.000,errQty:0.003,errAmt:0.017},
+  {dept:'二部',course:'嘉南課',name:'黃主芸',title:'中階助理',stores:14,avgItem:1276,avgQty:7224,avgAmt:388661,errItem:0.034,errQty:0.003,errAmt:0.021},
+  {dept:'二部',course:'嘉南課',name:'蕭亦姿',title:'中階助理',stores:13,avgItem:1591,avgQty:9854,avgAmt:522395,errItem:0.020,errQty:0.036,errAmt:0.042},
+  {dept:'二部',course:'嘉南課',name:'蔡定菲',title:'初階助理',stores:14,avgItem:1312,avgQty:7948,avgAmt:421575,errItem:0.066,errQty:0.092,errAmt:0.119},
+  {dept:'二部',course:'嘉南課',name:'蘇伊玲',title:'初階助理',stores:15,avgItem:1316,avgQty:6515,avgAmt:439546,errItem:0.000,errQty:0.003,errAmt:0.002},
+  {dept:'二部',course:'高屏課',name:'顏愛蓮',title:'助理高專',stores:13,avgItem:1248,avgQty:9063,avgAmt:467271,errItem:0.013,errQty:0.068,errAmt:0.047},
+  {dept:'二部',course:'高屏課',name:'曾和雅',title:'助理高專',stores:15,avgItem:1425,avgQty:8792,avgAmt:574824,errItem:0.029,errQty:0.054,errAmt:0.042},
+  {dept:'二部',course:'高屏課',name:'陳紀珊',title:'資深專員',stores:15,avgItem:1143,avgQty:7018,avgAmt:474071,errItem:0.000,errQty:0.012,errAmt:0.011},
+  {dept:'二部',course:'高屏課',name:'林宜璇',title:'資深專員',stores:15,avgItem:1245,avgQty:7812,avgAmt:469480,errItem:0.033,errQty:0.053,errAmt:0.046},
+  {dept:'二部',course:'高屏課',name:'簡竹綿',title:'資深專員',stores:10,avgItem:1064,avgQty:8305,avgAmt:532276,errItem:0.019,errQty:0.023,errAmt:0.017},
+  {dept:'二部',course:'高屏課',name:'王貞茜',title:'資深專員',stores:16,avgItem:1282,avgQty:6334,avgAmt:396295,errItem:0.010,errQty:0.017,errAmt:0.012},
+  {dept:'二部',course:'高屏課',name:'林紋汝',title:'資深專員',stores:16,avgItem:1099,avgQty:7538,avgAmt:486264,errItem:0.012,errQty:0.019,errAmt:0.036},
+  {dept:'二部',course:'高屏課',name:'黃慧玲',title:'資深專員',stores:13,avgItem:1218,avgQty:7965,avgAmt:512261,errItem:0.051,errQty:0.020,errAmt:0.024},
+  {dept:'二部',course:'高屏課',name:'侯鑫鳳',title:'資深專員',stores:4,avgItem:1116,avgQty:7187,avgAmt:373808,errItem:0.000,errQty:0.067,errAmt:0.074},
+  {dept:'二部',course:'高屏課',name:'蕭婉蓁',title:'專員',stores:10,avgItem:1296,avgQty:8652,avgAmt:536845,errItem:0.062,errQty:0.043,errAmt:0.037},
+  {dept:'二部',course:'高屏課',name:'鄭紹萱',title:'專員',stores:12,avgItem:1306,avgQty:8926,avgAmt:556987,errItem:0.052,errQty:0.203,errAmt:0.030},
+  {dept:'二部',course:'高屏課',name:'吳佳諼',title:'專員',stores:14,avgItem:1354,avgQty:7851,avgAmt:421692,errItem:0.000,errQty:0.064,errAmt:0.054},
+  {dept:'二部',course:'高屏課',name:'趙翊岑',title:'專員',stores:14,avgItem:1371,avgQty:8385,avgAmt:527723,errItem:0.032,errQty:0.015,errAmt:0.018},
+  {dept:'二部',course:'高屏課',name:'孫于𣶏',title:'專員',stores:16,avgItem:1337,avgQty:7419,avgAmt:519428,errItem:0.029,errQty:0.034,errAmt:0.033},
+  {dept:'二部',course:'高屏課',name:'楊雅筑',title:'中階助理',stores:15,avgItem:1352,avgQty:8913,avgAmt:666237,errItem:0.020,errQty:0.026,errAmt:0.019},
+  {dept:'二部',course:'高屏課',name:'顏蕙蕙',title:'中階助理',stores:16,avgItem:1212,avgQty:8105,avgAmt:518568,errItem:0.021,errQty:0.041,errAmt:0.037},
+  {dept:'二部',course:'高屏課',name:'林泳洳',title:'中階助理',stores:4,avgItem:1267,avgQty:8022,avgAmt:686888,errItem:0.119,errQty:0.053,errAmt:0.020},
+  {dept:'二部',course:'高屏課',name:'林怡佩',title:'中階助理',stores:16,avgItem:1424,avgQty:10186,avgAmt:731328,errItem:0.018,errQty:0.045,errAmt:0.029},
+  {dept:'二部',course:'高屏課',name:'陳玉茹',title:'中階助理',stores:14,avgItem:1247,avgQty:9154,avgAmt:600087,errItem:0.023,errQty:0.052,errAmt:0.029},
+  {dept:'二部',course:'高屏課(未計入)',name:'簡姀秀',title:'初階助理',stores:2,avgItem:724,avgQty:2983,avgAmt:192464,errItem:0.000,errQty:0.000,errAmt:0.000},
+  {dept:'二部',course:'高屏課(未計入)',name:'簡維蓉',title:'初階助理',stores:2,avgItem:553,avgQty:1953,avgAmt:145488,errItem:0.000,errQty:0.000,errAmt:0.000},
+  {dept:'業務部',course:'教育訓練課',name:'許慧珍',title:'助理高專',stores:5,avgItem:1179,avgQty:8717,avgAmt:598065,errItem:0.034,errQty:0.028,errAmt:0.049},
+  {dept:'業務部',course:'教育訓練課',name:'陳紀源',title:'資深專員',stores:0,avgItem:0,avgQty:0,avgAmt:0,errItem:null,errQty:null,errAmt:null},
+];
+
+// ── 小組效率資料（115/04/02～04/14，每字代表一位人員）────────（115/04/02～04/14，每字代表一位人員）────────
+const teamPersonData = [
+  {course:'台中課',name:'婉',n:14,avgMin:179.1,avgInv:1336657,avgPpl:2.29,ldrPct:50},
+  {course:'北四課',name:'錡',n:14,avgMin:182.9,avgInv:1507366,avgPpl:2.86,ldrPct:50},
+  {course:'台中課',name:'瑄',n:7,avgMin:155,avgInv:1336543,avgPpl:2.86,ldrPct:43},
+  {course:'桃竹課',name:'華',n:11,avgMin:162.9,avgInv:1420826,avgPpl:2.55,ldrPct:0},
+  {course:'嘉南課',name:'菲',n:14,avgMin:188.5,avgInv:1447863,avgPpl:2.93,ldrPct:0},
+  {course:'台中課',name:'周',n:10,avgMin:160.3,avgInv:1395029,avgPpl:2.4,ldrPct:30},
+  {course:'北一課',name:'筱',n:8,avgMin:127.6,avgInv:1378008,avgPpl:3.12,ldrPct:50},
+  {course:'北四課',name:'霈',n:13,avgMin:157.2,avgInv:1400951,avgPpl:2.62,ldrPct:31},
+  {course:'嘉南課',name:'琁',n:12,avgMin:165.8,avgInv:1536106,avgPpl:2.92,ldrPct:0},
+  {course:'北二課',name:'珍',n:16,avgMin:165,avgInv:1389640,avgPpl:2.62,ldrPct:31},
+  {course:'北三課',name:'姵',n:10,avgMin:177.3,avgInv:1524557,avgPpl:3.2,ldrPct:60},
+  {course:'北三課',name:'雨',n:11,avgMin:174.5,avgInv:1487678,avgPpl:3,ldrPct:27},
+  {course:'北三課',name:'芳',n:11,avgMin:170.5,avgInv:1412070,avgPpl:2.73,ldrPct:45},
+  {course:'北二課',name:'玉',n:14,avgMin:164.1,avgInv:1473163,avgPpl:2.64,ldrPct:50},
+  {course:'北四課',name:'華',n:7,avgMin:176.3,avgInv:1499927,avgPpl:2.71,ldrPct:14},
+  {course:'北三課',name:'旻',n:11,avgMin:178.8,avgInv:1553594,avgPpl:3.18,ldrPct:18},
+  {course:'北四課',name:'祥',n:11,avgMin:175,avgInv:1407937,avgPpl:2.91,ldrPct:0},
+  {course:'北四課',name:'穎',n:9,avgMin:153.8,avgInv:1447536,avgPpl:2.44,ldrPct:33},
+  {course:'台中課',name:'洹',n:14,avgMin:155.9,avgInv:1439490,avgPpl:2.71,ldrPct:21},
+  {course:'高屏課',name:'汝',n:14,avgMin:195.2,avgInv:1416115,avgPpl:2.79,ldrPct:43},
+  {course:'北一課',name:'佳',n:13,avgMin:156.9,avgInv:1487431,avgPpl:2.85,ldrPct:0},
+  {course:'嘉南課',name:'韋',n:14,avgMin:192.9,avgInv:1396739,avgPpl:2.79,ldrPct:43},
+  {course:'北二課',name:'孫',n:15,avgMin:162.3,avgInv:1452429,avgPpl:2.53,ldrPct:47},
+  {course:'高屏課',name:'佳',n:10,avgMin:199.7,avgInv:1511351,avgPpl:3,ldrPct:60},
+  {course:'北三課',name:'凱',n:11,avgMin:171,avgInv:1380408,avgPpl:2.91,ldrPct:27},
+  {course:'高屏課',name:'簡',n:12,avgMin:226,avgInv:1472508,avgPpl:2.75,ldrPct:33},
+  {course:'台中課',name:'巫',n:13,avgMin:167.8,avgInv:1402151,avgPpl:2.85,ldrPct:23},
+  {course:'北四課',name:'美',n:10,avgMin:205.1,avgInv:1510533,avgPpl:2.8,ldrPct:20},
+  {course:'北四課',name:'晏',n:15,avgMin:167.5,avgInv:1571623,avgPpl:3,ldrPct:0},
+  {course:'台中課',name:'汝',n:8,avgMin:155.8,avgInv:1545280,avgPpl:2.75,ldrPct:50},
+  {course:'北一課',name:'皓',n:8,avgMin:187,avgInv:1389736,avgPpl:2.62,ldrPct:0},
+  {course:'北四課',name:'瑛',n:6,avgMin:165.8,avgInv:1512852,avgPpl:3,ldrPct:33},
+  {course:'桃竹課',name:'倢',n:11,avgMin:165.4,avgInv:1438110,avgPpl:2.82,ldrPct:0},
+  {course:'北一課',name:'晶',n:6,avgMin:186.7,avgInv:1352621,avgPpl:2.67,ldrPct:0},
+  {course:'台中課',name:'楊',n:12,avgMin:178.2,avgInv:1505210,avgPpl:2.58,ldrPct:25},
+  {course:'北四課',name:'陳',n:9,avgMin:165.4,avgInv:1395168,avgPpl:2.78,ldrPct:22},
+  {course:'台中課',name:'蕭',n:8,avgMin:163.6,avgInv:1421126,avgPpl:2.75,ldrPct:50},
+  {course:'嘉南課',name:'姿',n:14,avgMin:185.6,avgInv:1472465,avgPpl:2.71,ldrPct:0},
+  {course:'桃竹課',name:'璇',n:8,avgMin:171.1,avgInv:1392379,avgPpl:2.75,ldrPct:62},
+  {course:'台中課',name:'彥',n:10,avgMin:161.5,avgInv:1235883,avgPpl:2.6,ldrPct:70},
+  {course:'台中課',name:'如',n:11,avgMin:154.6,avgInv:1407405,avgPpl:2.73,ldrPct:0},
+  {course:'嘉南課',name:'秀',n:14,avgMin:196.3,avgInv:1591158,avgPpl:2.86,ldrPct:43},
+  {course:'台中課',name:'妤',n:5,avgMin:174.6,avgInv:1260549,avgPpl:2.4,ldrPct:100},
+  {course:'北一課',name:'嫺',n:12,avgMin:150.3,avgInv:1455772,avgPpl:2.83,ldrPct:67},
+  {course:'台中課',name:'溫',n:7,avgMin:187.4,avgInv:1346153,avgPpl:2.29,ldrPct:43},
+  {course:'桃竹課',name:'蓉',n:13,avgMin:174.8,avgInv:1585490,avgPpl:2.92,ldrPct:15},
+  {course:'北一課',name:'家',n:12,avgMin:159.4,avgInv:1308572,avgPpl:2.58,ldrPct:42},
+  {course:'北一課',name:'芝',n:10,avgMin:179.7,avgInv:1306141,avgPpl:2.7,ldrPct:50},
+  {course:'北二課',name:'淇',n:11,avgMin:178.6,avgInv:1402018,avgPpl:2.27,ldrPct:55},
+  {course:'北一課',name:'昭',n:14,avgMin:179.7,avgInv:1290103,avgPpl:2.64,ldrPct:36},
+  {course:'高屏課',name:'侯',n:4,avgMin:161.8,avgInv:1574168,avgPpl:3.5,ldrPct:75},
+  {course:'桃竹課',name:'妤',n:10,avgMin:172.1,avgInv:1382900,avgPpl:2.6,ldrPct:50},
+  {course:'台中課',name:'宋',n:12,avgMin:170.8,avgInv:1413222,avgPpl:2.83,ldrPct:0},
+  {course:'北一課',name:'于',n:6,avgMin:150.7,avgInv:1128954,avgPpl:2.17,ldrPct:33},
+  {course:'桃竹課',name:'偲',n:11,avgMin:179.1,avgInv:1398697,avgPpl:2.73,ldrPct:82},
+  {course:'北一課',name:'絜',n:8,avgMin:127.6,avgInv:1378008,avgPpl:3.12,ldrPct:50},
+  {course:'北四課',name:'菁',n:11,avgMin:181.5,avgInv:1503185,avgPpl:2.82,ldrPct:18},
+  {course:'北三課',name:'宛',n:11,avgMin:170.9,avgInv:1477553,avgPpl:3.09,ldrPct:27},
+  {course:'北一課',name:'林',n:10,avgMin:174.6,avgInv:1292536,avgPpl:2.6,ldrPct:0},
+  {course:'北二課',name:'敏',n:8,avgMin:163.5,avgInv:1662697,avgPpl:3,ldrPct:0},
+  {course:'北四課',name:'宇',n:7,avgMin:184,avgInv:1571497,avgPpl:3,ldrPct:29},
+  {course:'台中課',name:'庭',n:12,avgMin:166.2,avgInv:1374116,avgPpl:2.67,ldrPct:33},
+  {course:'桃竹課',name:'蕾',n:13,avgMin:165.2,avgInv:1523313,avgPpl:3,ldrPct:23},
+  {course:'北四課',name:'紫',n:5,avgMin:164,avgInv:1407619,avgPpl:2.8,ldrPct:40},
+  {course:'北四課',name:'汝',n:12,avgMin:189.9,avgInv:1536778,avgPpl:2.92,ldrPct:33},
+  {course:'嘉南課',name:'瑜',n:11,avgMin:182.5,avgInv:1543608,avgPpl:2.64,ldrPct:36},
+  {course:'桃竹課',name:'慧',n:8,avgMin:162.9,avgInv:1415944,avgPpl:2.88,ldrPct:75},
+  {course:'北三課',name:'子',n:11,avgMin:169.9,avgInv:1292292,avgPpl:2.64,ldrPct:0},
+  {course:'北四課',name:'雅',n:10,avgMin:165.3,avgInv:1491806,avgPpl:3,ldrPct:0},
+  {course:'台中課',name:'芃',n:7,avgMin:168,avgInv:1315475,avgPpl:2.43,ldrPct:43},
+  {course:'北四課',name:'儀',n:11,avgMin:161.5,avgInv:1429615,avgPpl:2.82,ldrPct:45},
+  {course:'桃竹課',name:'方',n:12,avgMin:175.5,avgInv:1570302,avgPpl:2.92,ldrPct:0},
+  {course:'高屏課',name:'蕙',n:16,avgMin:176.2,avgInv:1397732,avgPpl:2.62,ldrPct:0},
+  {course:'北一課',name:'廷',n:12,avgMin:159.9,avgInv:1384007,avgPpl:2.75,ldrPct:25},
+  {course:'台中課',name:'游',n:10,avgMin:172.6,avgInv:1313412,avgPpl:2.4,ldrPct:80},
+  {course:'台中課',name:'綺',n:9,avgMin:159.3,avgInv:1573566,avgPpl:2.89,ldrPct:0},
+  {course:'北一課',name:'羽',n:13,avgMin:171.4,avgInv:1395947,avgPpl:2.85,ldrPct:0},
+  {course:'台中課',name:'思',n:9,avgMin:151.6,avgInv:1220798,avgPpl:2.56,ldrPct:22},
+  {course:'桃竹課',name:'孟',n:8,avgMin:160.6,avgInv:1469930,avgPpl:3.25,ldrPct:25},
+  {course:'北一課',name:'憶',n:4,avgMin:207.2,avgInv:1154238,avgPpl:2.5,ldrPct:75},
+  {course:'北二課',name:'黃',n:13,avgMin:181.5,avgInv:1437415,avgPpl:2.46,ldrPct:0},
+  {course:'北一課',name:'董',n:15,avgMin:177.6,avgInv:1242004,avgPpl:2.6,ldrPct:47},
+  {course:'高屏課',name:'顏',n:12,avgMin:195.5,avgInv:1250447,avgPpl:2.5,ldrPct:58},
+  {course:'北四課',name:'妤',n:7,avgMin:158.1,avgInv:1385068,avgPpl:2.71,ldrPct:29},
+  {course:'北一課',name:'孟',n:9,avgMin:179.7,avgInv:1376632,avgPpl:2.89,ldrPct:67},
+  {course:'高屏課',name:'璇',n:10,avgMin:192.5,avgInv:1511078,avgPpl:3,ldrPct:30},
+  {course:'嘉南課',name:'涵',n:10,avgMin:176.7,avgInv:1520018,avgPpl:2.6,ldrPct:50},
+  {course:'北三課',name:'宇',n:9,avgMin:183.8,avgInv:1323891,avgPpl:2.78,ldrPct:22},
+  {course:'北三課',name:'詩',n:7,avgMin:166.6,avgInv:1564239,avgPpl:3,ldrPct:29},
+  {course:'高屏課',name:'生',n:9,avgMin:189.3,avgInv:1410850,avgPpl:2.78,ldrPct:22},
+  {course:'桃竹課',name:'彭',n:13,avgMin:169.6,avgInv:1519874,avgPpl:3.08,ldrPct:31},
+  {course:'台中課',name:'彩',n:11,avgMin:166.6,avgInv:1538158,avgPpl:2.82,ldrPct:0},
+  {course:'北四課',name:'邱',n:13,avgMin:158.8,avgInv:1516591,avgPpl:3,ldrPct:0},
+  {course:'桃竹課',name:'茜',n:12,avgMin:170.1,avgInv:1552520,avgPpl:2.92,ldrPct:67},
+  {course:'北一課',name:'姵',n:16,avgMin:169.3,avgInv:1554589,avgPpl:3,ldrPct:0},
+  {course:'北一課',name:'吳',n:7,avgMin:144,avgInv:1282800,avgPpl:2.57,ldrPct:86},
+  {course:'北一課',name:'達',n:8,avgMin:159.8,avgInv:1199338,avgPpl:2.38,ldrPct:62},
+  {course:'台中課',name:'旻',n:10,avgMin:176.8,avgInv:1432574,avgPpl:2.7,ldrPct:40},
+  {course:'嘉南課',name:'芸',n:14,avgMin:195.5,avgInv:1469801,avgPpl:2.86,ldrPct:0},
+  {course:'北一課',name:'朱',n:11,avgMin:178.9,avgInv:1479383,avgPpl:3,ldrPct:27},
+  {course:'台中課',name:'意',n:13,avgMin:176.5,avgInv:1448384,avgPpl:2.85,ldrPct:0},
+  {course:'嘉南課',name:'玲',n:14,avgMin:179.1,avgInv:1500042,avgPpl:3,ldrPct:0},
+  {course:'嘉南課',name:'源',n:10,avgMin:173,avgInv:1572804,avgPpl:2.8,ldrPct:40},
+  {course:'北二課',name:'雅',n:15,avgMin:154.3,avgInv:1369174,avgPpl:2.67,ldrPct:47},
+  {course:'高屏課',name:'于',n:12,avgMin:192.3,avgInv:1412457,avgPpl:2.83,ldrPct:50},
+  {course:'嘉南課',name:'珮',n:11,avgMin:188.1,avgInv:1499483,avgPpl:2.73,ldrPct:36},
+  {course:'北四課',name:'育',n:11,avgMin:168,avgInv:1376530,avgPpl:2.82,ldrPct:45},
+  {course:'北四課',name:'姍',n:11,avgMin:148.6,avgInv:1258733,avgPpl:2.55,ldrPct:36},
+  {course:'北二課',name:'安',n:8,avgMin:146.4,avgInv:1392960,avgPpl:2.75,ldrPct:38},
+  {course:'台中課',name:'雯',n:8,avgMin:169.1,avgInv:1386754,avgPpl:2.62,ldrPct:0},
+  {course:'北三課',name:'雅',n:9,avgMin:166.6,avgInv:1264386,avgPpl:2.67,ldrPct:33},
+  {course:'北三課',name:'宸',n:11,avgMin:174.5,avgInv:1487678,avgPpl:3,ldrPct:27},
+  {course:'北二課',name:'真',n:7,avgMin:153.4,avgInv:1464401,avgPpl:3,ldrPct:14},
+  {course:'嘉南課',name:'儀',n:12,avgMin:170.8,avgInv:1431827,avgPpl:2.92,ldrPct:58},
+  {course:'桃竹課',name:'宇',n:11,avgMin:179.1,avgInv:1398697,avgPpl:2.73,ldrPct:18},
+  {course:'北一課',name:'珊',n:16,avgMin:180.2,avgInv:1371900,avgPpl:2.75,ldrPct:0},
+  {course:'北四課',name:'萱',n:12,avgMin:163.6,avgInv:1478362,avgPpl:2.92,ldrPct:33},
+  {course:'北一課',name:'雅',n:9,avgMin:194.2,avgInv:1371725,avgPpl:2.67,ldrPct:0},
+  {course:'台中課',name:'黃',n:3,avgMin:143.3,avgInv:1293407,avgPpl:2.67,ldrPct:0},
+  {course:'北三課',name:'元',n:10,avgMin:175.3,avgInv:1509814,avgPpl:3,ldrPct:0},
+  {course:'高屏課',name:'許',n:4,avgMin:246.8,avgInv:1638911,avgPpl:3,ldrPct:0},
+  {course:'高屏課',name:'曾',n:15,avgMin:192.9,avgInv:1528887,avgPpl:2.73,ldrPct:40},
+  {course:'台中課',name:'石',n:8,avgMin:168,avgInv:1384751,avgPpl:2.75,ldrPct:100},
+  {course:'嘉南課',name:'心',n:14,avgMin:172.6,avgInv:1396146,avgPpl:2.93,ldrPct:100},
+  {course:'高屏課',name:'佩',n:14,avgMin:192.7,avgInv:1434869,avgPpl:2.71,ldrPct:0},
+  {course:'台中課',name:'洪',n:15,avgMin:159.1,avgInv:1438609,avgPpl:2.67,ldrPct:87},
+  {course:'高屏課',name:'玉',n:14,avgMin:190.7,avgInv:1468859,avgPpl:3.07,ldrPct:0},
+  {course:'台中課',name:'林',n:10,avgMin:165.1,avgInv:1390297,avgPpl:2.6,ldrPct:20},
+  {course:'北一課',name:'欣',n:10,avgMin:188.3,avgInv:1341504,avgPpl:2.6,ldrPct:50},
+  {course:'北二課',name:'振',n:16,avgMin:156.2,avgInv:1606003,avgPpl:2.81,ldrPct:56},
+  {course:'北二課',name:'軒',n:13,avgMin:171.1,avgInv:1275554,avgPpl:2.15,ldrPct:31},
+  {course:'北二課',name:'稚',n:11,avgMin:179.2,avgInv:1365615,avgPpl:2,ldrPct:0},
+  {course:'高屏課',name:'蕭',n:9,avgMin:200,avgInv:1463306,avgPpl:2.89,ldrPct:44},
+  {course:'桃竹課',name:'劉',n:6,avgMin:172,avgInv:1442759,avgPpl:2.67,ldrPct:50},
+  {course:'桃竹課',name:'柯',n:9,avgMin:164.6,avgInv:1288935,avgPpl:2.22,ldrPct:0},
+  {course:'嘉南課',name:'呂',n:12,avgMin:198.8,avgInv:1497100,avgPpl:2.83,ldrPct:83},
+  {course:'台中課',name:'姚',n:8,avgMin:153.4,avgInv:1537058,avgPpl:2.75,ldrPct:38},
+  {course:'北二課',name:'可',n:12,avgMin:165.3,avgInv:1280164,avgPpl:2.17,ldrPct:58},
+  {course:'台中課',name:'梓',n:10,avgMin:180.3,avgInv:1465797,avgPpl:2.5,ldrPct:0},
+  {course:'台中課',name:'郭',n:14,avgMin:164.8,avgInv:1423596,avgPpl:2.93,ldrPct:50},
+  {course:'北二課',name:'姚',n:10,avgMin:170.6,avgInv:1378659,avgPpl:2.5,ldrPct:40},
+  {course:'北二課',name:'仙',n:2,avgMin:150,avgInv:1409870,avgPpl:2.5,ldrPct:0},
+  {course:'北一課',name:'秀',n:10,avgMin:168.9,avgInv:1389400,avgPpl:3,ldrPct:30},
+  {course:'桃竹課',name:'雯',n:12,avgMin:173.2,avgInv:1380104,avgPpl:2.67,ldrPct:8},
+  {course:'台中課',name:'唐',n:16,avgMin:173.1,avgInv:1487723,avgPpl:2.81,ldrPct:19},
+  {course:'北二課',name:'佳',n:8,avgMin:165.4,avgInv:1695296,avgPpl:3.12,ldrPct:0},
+  {course:'台中課',name:'沛',n:13,avgMin:162.8,avgInv:1397978,avgPpl:2.85,ldrPct:0},
+  {course:'桃竹課',name:'丸',n:9,avgMin:165.1,avgInv:1258129,avgPpl:2.56,ldrPct:0},
+  {course:'北二課',name:'郭',n:12,avgMin:156.9,avgInv:1301905,avgPpl:2.33,ldrPct:42},
+  {course:'台中課',name:'嘉',n:14,avgMin:168.2,avgInv:1445648,avgPpl:2.93,ldrPct:21},
+  {course:'北二課',name:'君',n:13,avgMin:155.6,avgInv:1584723,avgPpl:2.92,ldrPct:0},
+  {course:'高屏課',name:'泳',n:4,avgMin:180.8,avgInv:1645675,avgPpl:3,ldrPct:0},
+  {course:'高屏課',name:'萱',n:12,avgMin:170.6,avgInv:1316834,avgPpl:2.58,ldrPct:67},
+  {course:'北四課',name:'媛',n:13,avgMin:144.5,avgInv:1451245,avgPpl:2.77,ldrPct:54},
+  {course:'北二課',name:'靜',n:9,avgMin:155.1,avgInv:1384665,avgPpl:2.78,ldrPct:44},
+  {course:'桃竹課',name:'徐',n:9,avgMin:170.3,avgInv:1499851,avgPpl:2.67,ldrPct:22},
+  {course:'高屏課',name:'筑',n:13,avgMin:210.5,avgInv:1468202,avgPpl:2.77,ldrPct:0},
+  {course:'嘉南課',name:'汶',n:12,avgMin:190.8,avgInv:1410270,avgPpl:2.83,ldrPct:33},
+  {course:'台中課',name:'方',n:13,avgMin:157.3,avgInv:1306013,avgPpl:2.62,ldrPct:31},
+  {course:'嘉南課',name:'麗',n:13,avgMin:181.8,avgInv:1483464,avgPpl:2.77,ldrPct:38},
+  {course:'北三課',name:'姿',n:11,avgMin:172.9,avgInv:1473843,avgPpl:3,ldrPct:36},
+  {course:'北二課',name:'秋',n:13,avgMin:158.3,avgInv:1475994,avgPpl:2.77,ldrPct:38},
+  {course:'台中課',name:'淳',n:13,avgMin:176.5,avgInv:1448384,avgPpl:2.85,ldrPct:31},
+  {course:'北一課',name:'君',n:13,avgMin:192.9,avgInv:1275436,avgPpl:2.54,ldrPct:46},
+  {course:'嘉南課',name:'芝',n:12,avgMin:187.7,avgInv:1525428,avgPpl:2.83,ldrPct:0},
+  {course:'高屏課',name:'玲',n:13,avgMin:186.3,avgInv:1340714,avgPpl:2.69,ldrPct:46},
+  {course:'嘉南課',name:'琪',n:10,avgMin:177.5,avgInv:1620791,avgPpl:2.9,ldrPct:50},
+  {course:'桃竹課',name:'梅',n:13,avgMin:172.2,avgInv:1461546,avgPpl:2.85,ldrPct:23},
+  {course:'北四課',name:'吳',n:10,avgMin:164.8,avgInv:1522446,avgPpl:2.8,ldrPct:60},
+  {course:'高屏課',name:'珊',n:14,avgMin:209.8,avgInv:1486010,avgPpl:2.86,ldrPct:43},
+  {course:'北三課',name:'涵',n:7,avgMin:188.9,avgInv:1330388,avgPpl:2.43,ldrPct:29},
+  {course:'台中課',name:'張',n:13,avgMin:176.5,avgInv:1448384,avgPpl:2.85,ldrPct:77},
+  {course:'桃竹課',name:'琪',n:7,avgMin:168.9,avgInv:1335483,avgPpl:2.57,ldrPct:43},
+  {course:'北一課',name:'綉',n:12,avgMin:182.5,avgInv:1398070,avgPpl:2.92,ldrPct:83},
+  {course:'高屏課',name:'岑',n:13,avgMin:188.4,avgInv:1345026,avgPpl:2.54,ldrPct:46},
+  {course:'桃竹課',name:'卜',n:12,avgMin:172.5,avgInv:1414256,avgPpl:2.83,ldrPct:17},
+  {course:'北一課',name:'青',n:11,avgMin:151.1,avgInv:1241214,avgPpl:2.55,ldrPct:0},
+  {course:'北三課',name:'桀',n:7,avgMin:164.9,avgInv:1322200,avgPpl:2.71,ldrPct:57},
+  {course:'高屏課',name:'王',n:14,avgMin:197.2,avgInv:1515010,avgPpl:3,ldrPct:57},
+  {course:'北三課',name:'義',n:6,avgMin:173.5,avgInv:1587764,avgPpl:3.17,ldrPct:0},
+  {course:'北四課',name:'蓉',n:8,avgMin:186.6,avgInv:1538076,avgPpl:2.75,ldrPct:50},
+  {course:'桃竹課',name:'瑋',n:10,avgMin:170.3,avgInv:1615249,avgPpl:2.9,ldrPct:0},
+];
+
+const teamComboData = [
+  {course:'台中課',combo:'張淳意',n:13,avgMin:176.5,avgInv:1448384,avgPpl:2.85},
+  {course:'北三課',combo:'桀子雅',n:6,avgMin:164,avgInv:1274666,avgPpl:2.67},
+  {course:'台中課',combo:'石宋沛',n:6,avgMin:179.2,avgInv:1453830,avgPpl:2.83},
+  {course:'北一課',combo:'家昭佳',n:6,avgMin:165,avgInv:1588329,avgPpl:3},
+  {course:'台中課',combo:'姚汝綺',n:5,avgMin:148.4,avgInv:1639329,avgPpl:3},
+  {course:'北二課',combo:'安真雅',n:5,avgMin:137.8,avgInv:1495534,avgPpl:3},
+  {course:'嘉南課',combo:'麗琪琁',n:5,avgMin:165.6,avgInv:1543044,avgPpl:3},
+  {course:'桃竹課',combo:'蕾蓉茜',n:5,avgMin:185,avgInv:1680940,avgPpl:3},
+  {course:'高屏課',combo:'萱蕙',n:5,avgMin:178.8,avgInv:1014278,avgPpl:2},
+  {course:'北二課',combo:'可軒稚',n:5,avgMin:171.6,avgInv:1349468,avgPpl:2},
+  {course:'北二課',combo:'可軒',n:5,avgMin:167.4,avgInv:1145126,avgPpl:2},
+  {course:'桃竹課',combo:'徐瑋妤',n:4,avgMin:162,avgInv:1474004,avgPpl:3},
+  {course:'北四課',combo:'儀萱汝',n:4,avgMin:160.8,avgInv:1553436,avgPpl:3},
+  {course:'台中課',combo:'旻婉如',n:4,avgMin:180.2,avgInv:1604576,avgPpl:2.75},
+  {course:'北四課',combo:'美錡祥',n:4,avgMin:180.8,avgInv:1549607,avgPpl:3},
+  {course:'北一課',combo:'昭憶',n:4,avgMin:207.2,avgInv:1154238,avgPpl:2.5},
+  {course:'北三課',combo:'姵宛旻',n:4,avgMin:166.8,avgInv:1336548,avgPpl:3},
+  {course:'北一課',combo:'嫺林',n:4,avgMin:174,avgInv:1200422,avgPpl:2},
+  {course:'桃竹課',combo:'偲宇方',n:4,avgMin:170.8,avgInv:1462138,avgPpl:3},
+  {course:'嘉南課',combo:'儀玲汶',n:4,avgMin:167.2,avgInv:1417335,avgPpl:3},
+  {course:'高屏課',combo:'璇汝簡',n:4,avgMin:195.5,avgInv:1522974,avgPpl:3},
+  {course:'嘉南課',combo:'秀瑜源',n:4,avgMin:173,avgInv:1537032,avgPpl:3},
+  {course:'台中課',combo:'唐嘉郭',n:4,avgMin:158.8,avgInv:1422746,avgPpl:3},
+  {course:'北二課',combo:'敏振君',n:4,avgMin:162.2,avgInv:1654761,avgPpl:3},
+  {course:'北二課',combo:'淇黃稚',n:3,avgMin:167,avgInv:1321387,avgPpl:2},
+  {course:'北四課',combo:'姍育',n:3,avgMin:141.3,avgInv:892913,avgPpl:2},
+  {course:'台中課',combo:'瑄宋沛',n:3,avgMin:162.7,avgInv:1407747,avgPpl:3},
+  {course:'北一課',combo:'董君雅',n:3,avgMin:181.3,avgInv:1465831,avgPpl:3},
+  {course:'桃竹課',combo:'蕾茜',n:3,avgMin:152.3,avgInv:1381992,avgPpl:2.67},
+  {course:'嘉南課',combo:'儀姿玲',n:3,avgMin:169.3,avgInv:1519565,avgPpl:3},
+  {course:'北二課',combo:'孫振',n:3,avgMin:159.7,avgInv:1361462,avgPpl:2.33},
+  {course:'台中課',combo:'楊婉',n:3,avgMin:200.3,avgInv:1272698,avgPpl:2},
+  {course:'台中課',combo:'嘉巫郭',n:3,avgMin:160.3,avgInv:1382188,avgPpl:3},
+  {course:'北四課',combo:'霈穎',n:3,avgMin:154,avgInv:1343428,avgPpl:2.33},
+  {course:'北四課',combo:'儀萱',n:3,avgMin:148,avgInv:1078842,avgPpl:2},
+  {course:'高屏課',combo:'顏玉珊',n:3,avgMin:185,avgInv:1529440,avgPpl:3},
+  {course:'北三課',combo:'雨姿宸',n:3,avgMin:174,avgInv:1437492,avgPpl:3},
+  {course:'台中課',combo:'洪洹如',n:3,avgMin:130.3,avgInv:1311075,avgPpl:3},
+  {course:'北一課',combo:'絜筱',n:3,avgMin:109.3,avgInv:985397,avgPpl:2.67},
+  {course:'北二課',combo:'郭玉',n:3,avgMin:167,avgInv:1263811,avgPpl:2},
+  {course:'北一課',combo:'于家',n:3,avgMin:127.3,avgInv:936657,avgPpl:2},
+  {course:'北二課',combo:'孫秋',n:3,avgMin:166.3,avgInv:1171508,avgPpl:2.33},
+  {course:'桃竹課',combo:'偲宇',n:3,avgMin:171.3,avgInv:1282426,avgPpl:2},
+  {course:'北二課',combo:'郭秋',n:3,avgMin:127.3,avgInv:1010476,avgPpl:2},
+  {course:'台中課',combo:'庭郭旻',n:2,avgMin:172,avgInv:1392617,avgPpl:3},
+  {course:'桃竹課',combo:'徐柯',n:2,avgMin:156,avgInv:1307484,avgPpl:2},
+  {course:'北四課',combo:'美錡晏',n:2,avgMin:224.5,avgInv:1782363,avgPpl:3},
+  {course:'桃竹課',combo:'琪孟卜',n:2,avgMin:161,avgInv:1295826,avgPpl:3},
+  {course:'桃竹課',combo:'柯華妤',n:2,avgMin:179.5,avgInv:1312543,avgPpl:2},
+  {course:'北一課',combo:'綉珊',n:2,avgMin:203,avgInv:1059216,avgPpl:2},
+  {course:'高屏課',combo:'顏簡',n:2,avgMin:232.5,avgInv:1019710,avgPpl:2},
+  {course:'北四課',combo:'蓉錡祥',n:2,avgMin:180,avgInv:1412767,avgPpl:3},
+  {course:'北三課',combo:'姵旻宛元',n:2,avgMin:207.5,avgInv:1517682,avgPpl:3},
+  {course:'北一課',combo:'秀皓',n:2,avgMin:221.5,avgInv:1162420,avgPpl:2},
+  {course:'北四課',combo:'妤紫雅',n:2,avgMin:156.5,avgInv:1502522,avgPpl:3},
+  {course:'北四課',combo:'姍瑛雅',n:2,avgMin:146,avgInv:1520898,avgPpl:3},
+  {course:'北四課',combo:'姍育邱',n:2,avgMin:168.5,avgInv:1579711,avgPpl:3},
+  {course:'北三課',combo:'宇凱子',n:2,avgMin:175.5,avgInv:1353774,avgPpl:3},
+  {course:'桃竹課',combo:'蕾茜倢',n:2,avgMin:163,avgInv:1606939,avgPpl:3},
+  {course:'北二課',combo:'真雅黃',n:2,avgMin:192.5,avgInv:1386570,avgPpl:3},
+  {course:'桃竹課',combo:'卜彭',n:2,avgMin:183,avgInv:1344232,avgPpl:2.5},
+  {course:'北二課',combo:'姚黃稚',n:2,avgMin:210.5,avgInv:1485966,avgPpl:2},
+  {course:'高屏課',combo:'玲岑',n:2,avgMin:161,avgInv:970941,avgPpl:2},
+  {course:'高屏課',combo:'汝岑',n:2,avgMin:201.5,avgInv:1217518,avgPpl:2},
+  {course:'北二課',combo:'振珍',n:2,avgMin:163,avgInv:1219904,avgPpl:2},
+  {course:'北四課',combo:'霈媛',n:2,avgMin:158.5,avgInv:1225038,avgPpl:2},
+  {course:'桃竹課',combo:'卜彭蓉',n:2,avgMin:187,avgInv:1520778,avgPpl:2.5},
+  {course:'嘉南課',combo:'心儀韋',n:2,avgMin:127,avgInv:1015484,avgPpl:3},
+  {course:'北四課',combo:'華穎',n:2,avgMin:146.5,avgInv:1205776,avgPpl:2},
+  {course:'北一課',combo:'秀綉姵',n:2,avgMin:175.5,avgInv:1431756,avgPpl:3},
+  {course:'高屏課',combo:'珊簡顏',n:2,avgMin:239,avgInv:1491570,avgPpl:2.5},
+  {course:'北四課',combo:'蓉汝晏',n:2,avgMin:195.5,avgInv:1589458,avgPpl:3},
+  {course:'台中課',combo:'洪洹黃',n:2,avgMin:148.5,avgInv:1459834,avgPpl:3},
+  {course:'台中課',combo:'游洪洹',n:2,avgMin:193.5,avgInv:1454830,avgPpl:2},
+  {course:'北一課',combo:'嫺秀姵',n:2,avgMin:156,avgInv:1386850,avgPpl:3},
+  {course:'北四課',combo:'菁吳陳',n:2,avgMin:193.5,avgInv:1606564,avgPpl:3},
+  {course:'台中課',combo:'游蕭彩',n:2,avgMin:162,avgInv:1427706,avgPpl:3},
+  {course:'北一課',combo:'芝欣羽',n:2,avgMin:153.5,avgInv:1300042,avgPpl:3},
+  {course:'北一課',combo:'芝欣雅',n:2,avgMin:184.5,avgInv:1635298,avgPpl:3},
+  {course:'北二課',combo:'可姚珍',n:2,avgMin:144.5,avgInv:1444502,avgPpl:3},
+  {course:'高屏課',combo:'蕭筑珊',n:2,avgMin:180.5,avgInv:1434970,avgPpl:3},
+  {course:'高屏課',combo:'汝佳玉',n:2,avgMin:213.5,avgInv:1527574,avgPpl:3},
+  {course:'北一課',combo:'董雅',n:2,avgMin:234.5,avgInv:1197668,avgPpl:2},
+  {course:'北一課',combo:'絜筱秀嫺',n:2,avgMin:111,avgInv:1671114,avgPpl:4},
+  {course:'北三課',combo:'芳涵子',n:2,avgMin:180,avgInv:1288762,avgPpl:2},
+  {course:'高屏課',combo:'璇佩',n:2,avgMin:191.5,avgInv:1259844,avgPpl:2},
+  {course:'北四課',combo:'美汝',n:2,avgMin:244.5,avgInv:1307752,avgPpl:2},
+  {course:'高屏課',combo:'曾玲',n:2,avgMin:184,avgInv:1036646,avgPpl:2.5},
+  {course:'北一課',combo:'達佳',n:2,avgMin:159,avgInv:1099434,avgPpl:2},
+  {course:'北三課',combo:'宸姿雨',n:2,avgMin:167,avgInv:1414404,avgPpl:3},
+  {course:'北三課',combo:'雅宇凱',n:2,avgMin:170.5,avgInv:1236141,avgPpl:3},
+  {course:'北二課',combo:'郭玉秋',n:2,avgMin:199.5,avgInv:1758061,avgPpl:3},
+  {course:'高屏課',combo:'王侯佩璇',n:2,avgMin:166,avgInv:1669617,avgPpl:4},
+  {course:'北三課',combo:'涵宇元',n:2,avgMin:177.5,avgInv:1464144,avgPpl:3},
+  {course:'台中課',combo:'巫嘉唐',n:2,avgMin:163.5,avgInv:1418318,avgPpl:3},
+  {course:'高屏課',combo:'曾玲岑',n:2,avgMin:203.5,avgInv:1590544,avgPpl:3},
+  {course:'台中課',combo:'婉梓雯',n:2,avgMin:179.5,avgInv:1271882,avgPpl:2},
+  {course:'嘉南課',combo:'韋菲姿',n:2,avgMin:168.5,avgInv:1419195,avgPpl:3},
+  {course:'桃竹課',combo:'蕾蓉',n:2,avgMin:153,avgInv:1044598,avgPpl:2},
+  {course:'北四課',combo:'媛邱晏',n:2,avgMin:144,avgInv:1468844,avgPpl:3},
+  {course:'北一課',combo:'嫺珊姵',n:2,avgMin:147.5,avgInv:1738696,avgPpl:3},
+  {course:'北二課',combo:'靜玉佳',n:2,avgMin:155,avgInv:1459424,avgPpl:3},
+  {course:'嘉南課',combo:'秀珮瑜',n:2,avgMin:242.5,avgInv:1568080,avgPpl:2.5},
+  {course:'北四課',combo:'美汝祥',n:2,avgMin:195,avgInv:1363333,avgPpl:3},
+  {course:'台中課',combo:'洪洹雯',n:2,avgMin:163,avgInv:1629352,avgPpl:3},
+  {course:'北一課',combo:'吳青',n:2,avgMin:134.5,avgInv:808204,avgPpl:2},
+  {course:'嘉南課',combo:'韋菲汶',n:2,avgMin:190.5,avgInv:1459286,avgPpl:3},
+  {course:'北四課',combo:'儀萱錡',n:2,avgMin:168,avgInv:1539260,avgPpl:3},
+  {course:'嘉南課',combo:'麗秀琁',n:2,avgMin:173,avgInv:1503225,avgPpl:3},
+  {course:'北一課',combo:'昭達',n:2,avgMin:170.5,avgInv:918516,avgPpl:2},
+  {course:'北四課',combo:'宇育陳',n:2,avgMin:174,avgInv:1496794,avgPpl:3},
+  {course:'北三課',combo:'芳詩義',n:2,avgMin:163.5,avgInv:1475297,avgPpl:3},
+  {course:'北一課',combo:'絜筱羽',n:2,avgMin:163.5,avgInv:1653690,avgPpl:3},
+  {course:'嘉南課',combo:'心呂芸',n:2,avgMin:180.5,avgInv:1509085,avgPpl:3},
+  {course:'北四課',combo:'媛錡祥',n:2,avgMin:139.5,avgInv:1380412,avgPpl:3},
+  {course:'北一課',combo:'孟朱皓',n:2,avgMin:178,avgInv:1571162,avgPpl:3},
+  {course:'嘉南課',combo:'心姿汶',n:2,avgMin:181,avgInv:1499226,avgPpl:3},
+  {course:'北一課',combo:'朱孟珊',n:2,avgMin:164,avgInv:1293228,avgPpl:3},
+  {course:'北四課',combo:'蓉錡',n:2,avgMin:206.5,avgInv:1337544,avgPpl:2},
+  {course:'高屏課',combo:'生岑筑',n:2,avgMin:229.5,avgInv:1427790,avgPpl:2.5},
+  {course:'北二課',combo:'敏振秋佳',n:2,avgMin:159,avgInv:2166769,avgPpl:4},
+  {course:'台中課',combo:'唐嘉巫',n:2,avgMin:174.5,avgInv:1512054,avgPpl:3},
+  {course:'嘉南課',combo:'秀源芝',n:2,avgMin:171,avgInv:1552072,avgPpl:3},
+  {course:'台中課',combo:'周芃梓',n:2,avgMin:185.5,avgInv:1448406,avgPpl:2.5},
+  {course:'嘉南課',combo:'源瑜琪',n:2,avgMin:178.5,avgInv:1848476,avgPpl:3},
+  {course:'高屏課',combo:'萱蕙于',n:2,avgMin:155.5,avgInv:1356694,avgPpl:3},
+  {course:'嘉南課',combo:'涵珮芝',n:2,avgMin:200,avgInv:1740557,avgPpl:3},
+  {course:'台中課',combo:'庭方郭',n:2,avgMin:183,avgInv:1556416,avgPpl:3},
+  {course:'高屏課',combo:'玲岑生',n:2,avgMin:164,avgInv:1440182,avgPpl:3},
+  {course:'北四課',combo:'媛穎晏',n:2,avgMin:151,avgInv:1620351,avgPpl:3},
+  {course:'桃竹課',combo:'劉方瑋',n:2,avgMin:172.5,avgInv:1724010,avgPpl:3},
+  {course:'台中課',combo:'庭方',n:2,avgMin:141.5,avgInv:889077,avgPpl:2},
+  {course:'北一課',combo:'綉廷姵',n:2,avgMin:179.5,avgInv:1758074,avgPpl:3},
+  {course:'北一課',combo:'綉廷林',n:2,avgMin:166.5,avgInv:1267191,avgPpl:3},
+  {course:'嘉南課',combo:'儀韋玲',n:2,avgMin:205,avgInv:1751654,avgPpl:3},
+  {course:'北三課',combo:'宇涵',n:2,avgMin:218.5,avgInv:1099747,avgPpl:2},
+  {course:'北二課',combo:'靜君',n:2,avgMin:128,avgInv:1143811,avgPpl:3},
+  {course:'北四課',combo:'媛吳晏',n:2,avgMin:118.5,avgInv:1378278,avgPpl:3},
+  {course:'桃竹課',combo:'劉慧',n:2,avgMin:142.5,avgInv:1161644,avgPpl:3},
+  {course:'北一課',combo:'朱珊姵',n:2,avgMin:205.5,avgInv:1711086,avgPpl:3},
+  {course:'北一課',combo:'嫺廷姵',n:2,avgMin:139.5,avgInv:1537130,avgPpl:3},
+  {course:'北三課',combo:'姿宸雨',n:2,avgMin:160,avgInv:1487109,avgPpl:3},
+  {course:'嘉南課',combo:'韋芸汶',n:2,avgMin:241,avgInv:1246810,avgPpl:2.5},
+  {course:'台中課',combo:'洪洹林',n:2,avgMin:159,avgInv:1500994,avgPpl:2.5},
+  {course:'北二課',combo:'孫君振',n:2,avgMin:130.5,avgInv:1830674,avgPpl:3},
+  {course:'北二課',combo:'淇玉黃',n:2,avgMin:166.5,avgInv:1789846,avgPpl:3},
+  {course:'台中課',combo:'楊唐彩',n:2,avgMin:188.5,avgInv:1928684,avgPpl:3},
+  {course:'桃竹課',combo:'璇丸梅',n:2,avgMin:182.5,avgInv:1530450,avgPpl:3},
+  {course:'嘉南課',combo:'呂菲姿',n:2,avgMin:191.5,avgInv:1496218,avgPpl:2.5},
+  {course:'北三課',combo:'宸雨姿',n:2,avgMin:183.5,avgInv:1536267,avgPpl:3},
+  {course:'台中課',combo:'游周',n:2,avgMin:153,avgInv:1269794,avgPpl:2},
+  {course:'高屏課',combo:'王珊玉',n:2,avgMin:217.5,avgInv:1559854,avgPpl:3},
+  {course:'桃竹課',combo:'華柯梅',n:2,avgMin:158.5,avgInv:1378127,avgPpl:3},
+  {course:'北二課',combo:'淇黃',n:2,avgMin:193.5,avgInv:1226931,avgPpl:2},
+  {course:'高屏課',combo:'萱蕙泳',n:2,avgMin:175.5,avgInv:1601630,avgPpl:3},
+  {course:'高屏課',combo:'簡蕭許',n:2,avgMin:237,avgInv:1573308,avgPpl:3},
+  {course:'嘉南課',combo:'源瑜',n:2,avgMin:169.5,avgInv:1389408,avgPpl:2},
+  {course:'北一課',combo:'孟朱珊',n:2,avgMin:206.5,avgInv:1432502,avgPpl:3},
+  {course:'北一課',combo:'孟珊',n:2,avgMin:164,avgInv:1140894,avgPpl:2.5},
+  {course:'高屏課',combo:'王佳佩',n:2,avgMin:171.5,avgInv:1477906,avgPpl:3},
+  {course:'高屏課',combo:'簡王許',n:2,avgMin:256.5,avgInv:1704514,avgPpl:3},
+  {course:'嘉南課',combo:'麗珮琪',n:2,avgMin:192.5,avgInv:1704230,avgPpl:3},
+  {course:'北二課',combo:'孫雅',n:2,avgMin:148.5,avgInv:1222832,avgPpl:2},
+  {course:'高屏課',combo:'蕭筑',n:2,avgMin:182.5,avgInv:1594796,avgPpl:3},
+  {course:'高屏課',combo:'王侯佩',n:2,avgMin:157.5,avgInv:1478719,avgPpl:3},
+  {course:'桃竹課',combo:'卜茜彭',n:2,avgMin:166.5,avgInv:1432843,avgPpl:3},
+  {course:'北四課',combo:'霈吳晏',n:2,avgMin:145,avgInv:1515371,avgPpl:3},
+  {course:'台中課',combo:'洪周如',n:2,avgMin:158.5,avgInv:1337010,avgPpl:2.5},
+  {course:'北一課',combo:'秀綉林',n:2,avgMin:180.5,avgInv:1294858,avgPpl:3},
+  {course:'嘉南課',combo:'心芸芝',n:2,avgMin:191.5,avgInv:1669247,avgPpl:3},
+  {course:'嘉南課',combo:'涵秀琁',n:2,avgMin:208,avgInv:1912356,avgPpl:3},
+  {course:'北四課',combo:'姍陳',n:2,avgMin:139,avgInv:1050236,avgPpl:2},
+  {course:'北一課',combo:'董吳青',n:2,avgMin:139,avgInv:1232894,avgPpl:2.5},
+  {course:'北四課',combo:'妤紫',n:2,avgMin:159,avgInv:1220550,avgPpl:2},
+  {course:'台中課',combo:'方思沛',n:2,avgMin:135.5,avgInv:1378938,avgPpl:3},
+  {course:'台中課',combo:'旻彥妤',n:2,avgMin:191,avgInv:1231087,avgPpl:2.5},
+  {course:'高屏課',combo:'曾蕙泳',n:2,avgMin:186,avgInv:1689721,avgPpl:3},
+  {course:'桃竹課',combo:'慧華方',n:2,avgMin:172.5,avgInv:1732820,avgPpl:3},
+  {course:'高屏課',combo:'曾萱蕙',n:2,avgMin:162,avgInv:1692104,avgPpl:3},
+  {course:'桃竹課',combo:'琪孟方',n:2,avgMin:183.5,avgInv:1645740,avgPpl:3},
+  {course:'北四課',combo:'華育晏',n:2,avgMin:188,avgInv:1586542,avgPpl:3},
+  {course:'桃竹課',combo:'卜彭孟',n:2,avgMin:150,avgInv:1488426,avgPpl:3},
+  {course:'嘉南課',combo:'呂菲芝',n:2,avgMin:195.5,avgInv:1470780,avgPpl:3},
+  {course:'桃竹課',combo:'卜彭妤',n:2,avgMin:187.5,avgInv:1403429,avgPpl:3},
+  {course:'桃竹課',combo:'雯梅倢',n:2,avgMin:171.5,avgInv:1416666,avgPpl:3},
+  {course:'北一課',combo:'董君羽',n:2,avgMin:184.5,avgInv:1372278,avgPpl:3},
+  {course:'北一課',combo:'吳青佳',n:2,avgMin:153,avgInv:1654503,avgPpl:3},
+  {course:'北四課',combo:'菁華邱',n:2,avgMin:188.5,avgInv:1580532,avgPpl:3},
+  {course:'嘉南課',combo:'心玲芝',n:2,avgMin:180,avgInv:1393468,avgPpl:3},
+  {course:'北一課',combo:'廷珊',n:2,avgMin:161.5,avgInv:1022258,avgPpl:2},
+  {course:'北一課',combo:'朱廷皓',n:2,avgMin:151.5,avgInv:1423594,avgPpl:3},
+  {course:'北四課',combo:'姍妤陳',n:2,avgMin:152,avgInv:1432814,avgPpl:3},
+  {course:'北一課',combo:'綉姵珊',n:2,avgMin:190,avgInv:1577324,avgPpl:3.5},
+  {course:'高屏課',combo:'汝于佳玉',n:2,avgMin:175,avgInv:1653880,avgPpl:4},
+  {course:'桃竹課',combo:'琪華柯',n:2,avgMin:165.5,avgInv:1257558,avgPpl:2},
+  {course:'北二課',combo:'姚軒珍',n:2,avgMin:148,avgInv:1436818,avgPpl:3},
+  {course:'桃竹課',combo:'雯倢梅',n:2,avgMin:154,avgInv:1410182,avgPpl:3},
+  {course:'北三課',combo:'詩凱芳',n:2,avgMin:166.5,avgInv:1663984,avgPpl:3},
+  {course:'桃竹課',combo:'蓉彭瑋',n:2,avgMin:161.5,avgInv:1714812,avgPpl:3},
+  {course:'嘉南課',combo:'涵芝',n:2,avgMin:188,avgInv:1326446,avgPpl:2},
+  {course:'嘉南課',combo:'心芸菲',n:2,avgMin:163,avgInv:1364618,avgPpl:3},
+  {course:'北三課',combo:'凱芳',n:2,avgMin:175,avgInv:991319,avgPpl:2},
+  {course:'北四課',combo:'菁瑛雅',n:2,avgMin:172.5,avgInv:1477316,avgPpl:3},
+  {course:'北二課',combo:'郭敏',n:2,avgMin:170.5,avgInv:1174496,avgPpl:2},
+  {course:'台中課',combo:'唐巫嘉',n:2,avgMin:195.5,avgInv:1742004,avgPpl:3},
+  {course:'嘉南課',combo:'呂芸菲',n:2,avgMin:183.5,avgInv:1453578,avgPpl:3},
+  {course:'高屏課',combo:'汝佩',n:2,avgMin:217,avgInv:1238894,avgPpl:2},
+  {course:'北四課',combo:'霈蓉邱',n:2,avgMin:164.5,avgInv:1812534,avgPpl:3},
+];
+
+const invLabels = ['<45萬','45~90萬','90~140萬','140~200萬','200萬以上'];
+const invColors = ['inv-c0','inv-c1','inv-c2','inv-c3','inv-c4'];
+
+// ══════════════════════════════════════════════════════
+// Helpers
+// ══════════════════════════════════════════════════════
+function fmt(v){ return (v*100).toFixed(4)+'%'; }
+function qcls(v){ return v<KPI*0.5?'ok':v<KPI?'warn':'over'; }
+// 個人誤盤率已是 % 值（0.069 = 0.069%），門檻對齊 KPI：< 0.03% ok, 0.03~0.06% warn, > 0.06% over
+function qcls2(v){ if(v===null) return ''; return v<0.03?'ok':v<0.06?'warn':'over'; }
+function fmtErr(v){ if(v===null) return '<span class="q-person-nc">-</span>'; return `<span class="${qcls2(v)}">${v.toFixed(3)}%</span>`; }
+function bColor(c){ return c==='ok'?'#1D9E75':c==='warn'?'#EF9F27':'#E24B4A'; }
+function barW(v){ return Math.min(v/(KPI*2)*100,100).toFixed(1); }
+const kpiPct='50.0';
+function fmtMin(m){ if(!m)return'-'; const h=Math.floor(m/60),mn=Math.round(m%60); return h>0?`${h}h${mn}m`:`${mn}m`; }
+function fmtMoney(v){ return Math.round(v/10000)+'萬'; }
+function lt3cls(p){ return p>=35?'pct-high':p>=20?'pct-mid':'pct-low'; }
+function cTotal(cv){ return Object.values(cv).reduce((s,n)=>s+n,0); }
+function cSpec(cv){ return Object.entries(cv).filter(([t])=>SPECIALIST.has(t)).reduce((s,[,n])=>s+n,0); }
+function specCls(p){ return p>=85?'spec-high':p>=70?'spec-mid':'spec-low'; }
+function specBg(p){ return p>=85?'#1D9E75':p>=70?'#EF9F27':'#E24B4A'; }
+
+// ══════════════════════════════════════════════════════
+// Headcount
+// ══════════════════════════════════════════════════════
+function buildHeadcount(){
+  let totalAll=0, totalField=0, totalSpec=0;
+  Object.entries(hcData).forEach(([,dv])=>{
+    const dt = dv.manager + Object.values(dv.courses).reduce((s,cv)=>s+cTotal(cv),0);
+    const ds = 1 + Object.values(dv.courses).reduce((s,cv)=>s+cSpec(cv),0);
+    totalAll += dt;
+    if(dv.type==='field') totalField += dt;
+    totalSpec += ds;
+  });
+  const maxC = Math.max(...Object.values(hcData).flatMap(dv=>Object.values(dv.courses).map(cTotal)));
+
+  let html = `<div class="info-bar">
+    <div class="info-card"><div class="info-val">${totalAll}</div><div class="info-lbl">全中心總人數</div><div class="info-date">截至 ${HC_DATE}</div></div>
+    <div class="info-card"><div class="info-val">${totalField}</div><div class="info-lbl">外勤人員</div><div class="info-date">截至 ${HC_DATE}</div></div>
+    <div class="info-card"><div class="info-val">${totalAll-totalField}</div><div class="info-lbl">內勤人員</div><div class="info-date">截至 ${HC_DATE}</div></div>
+    <div class="info-card"><div class="info-val">3</div><div class="info-lbl">部門數</div></div>
+    <div class="info-card"><div class="info-val">${Math.round(totalSpec/totalAll*100)}%</div><div class="info-lbl">全中心專員佔比</div><div class="info-date">截至 ${HC_DATE}</div></div>
+  </div>`;
+
+  html += `<div class="legend-row">
+    <span style="font-size:11px;color:#aaa89f;font-weight:500;margin-right:4px">專員類：</span>
+    ${['經理','課長','助理高專','資深專員','專員','事務專員'].map(t=>`<span class="title-pill pill-${t}">${t}</span>`).join('')}
+    <span style="font-size:11px;color:#aaa89f;font-weight:500;margin-left:12px;margin-right:4px">助理類：</span>
+    ${['中階助理','初階助理'].map(t=>`<span class="title-pill pill-${t}">${t}</span>`).join('')}
+    <span style="margin-left:auto;font-size:10px;color:#aaa89f">人力資料截至 ${HC_DATE}</span>
+  </div>`;
+
+  Object.entries(hcData).forEach(([deptKey,dv])=>{
+    const dTotal = dv.manager + Object.values(dv.courses).reduce((s,cv)=>s+cTotal(cv),0);
+    const dSpec  = 1 + Object.values(dv.courses).reduce((s,cv)=>s+cSpec(cv),0);
+    html += `<div class="dept-block">
+      <div class="dept-header">
+        <div class="dept-dot" style="background:${dv.color}"></div>
+        <div class="dept-name">盤點中心${deptKey}</div>
+        <span class="dept-tag ${dv.type==='field'?'type-field':'type-admin'}">${dv.type==='field'?'外勤':'內勤'}</span>
+        <div class="dept-subtotal">小計 ${dTotal} 人・專員類 ${Math.round(dSpec/dTotal*100)}%</div>
+      </div>
+      <div class="manager-row">
+        <div class="manager-label">部門主管</div>
+        <span class="title-pill pill-經理">經理 1</span>
+      </div>
+      <table class="hc-table">
+        <thead><tr><th>課別</th><th>人數</th><th>專員佔比</th><th>職稱分布</th></tr></thead>
+        <tbody>
+          ${Object.entries(dv.courses).map(([cname,cv])=>{
+            const ct=cTotal(cv), cs=cSpec(cv), cp=Math.round(cs/ct*100);
+            const pills=TITLE_ORDER.filter(t=>cv[t]).map(t=>`<span class="title-pill pill-${t}">${t} ${cv[t]}</span>`).join('');
+            return `<tr>
+              <td style="font-weight:500;color:#eef0f8">${cname}</td>
+              <td class="total-cell">
+                <div style="font-size:18px;font-weight:600;color:#eef0f8">${ct}</div>
+                <div class="bar-track"><div class="bar-fill" style="width:${Math.round(ct/maxC*100)}%;background:${dv.color}"></div></div>
+              </td>
+              <td class="spec-cell">
+                <div class="spec-pct-num ${specCls(cp)}">${cp}%</div>
+                <div class="spec-count-lbl">${cs} / ${ct} 人</div>
+                <div class="spec-bar-wrap"><div class="spec-bar-fill" style="width:${cp}%;background:${specBg(cp)}"></div></div>
+              </td>
+              <td><div class="title-cell">${pills}</div></td>
+            </tr>`;
+          }).join('')}
+        </tbody>
+      </table>
+    </div>`;
+  });
+
+  document.getElementById('panel-headcount').innerHTML = html;
+}
+
+// ══════════════════════════════════════════════════════
+// Quality
+// ══════════════════════════════════════════════════════
+function buildQualityTabs(){
+  const container = document.getElementById('quality-period-tabs');
+  container.innerHTML = qualityPeriods.map(p=>
+    `<div class="period-tab${p.key===currentQPeriod?' active':''}" onclick="selectQPeriod('${p.key}')">${p.label}</div>`
+  ).join('');
+}
+
+function selectQPeriod(key){
+  currentQPeriod = key;
+  buildQualityTabs();
+  buildQualityGrid();
+}
+
+function buildQualityGrid(){
+  const pd = qualityPeriods.find(p=>p.key===currentQPeriod);
+  document.getElementById('quality-period-range').textContent = '統計區間：' + pd.range;
+
+  let html='';
+  pd.dept.forEach(dept=>{
+    const meta = deptMeta[dept.short];
+    const courses = pd.course.filter(c=>c.dept===dept.short);
+    html += `<div class="q-dept-block">
+      <div class="dept-header">
+        <div class="dept-dot" style="background:${meta.color}"></div>
+        <div class="dept-name">${meta.fullName}</div>
+        <div class="dept-subtotal">${dept.人數} 人</div>
+      </div>
+      <div class="dept-rates">
+        ${[{label:'品項辨識誤盤率',val:dept.品項率},{label:'件數誤盤率',val:dept.件數率},{label:'金額誤盤率',val:dept.金額率}].map(r=>`
+          <div class="dept-rate-cell">
+            <div class="rate-type">${r.label}</div>
+            <div class="rate-val ${qcls(r.val)}">${fmt(r.val)}</div>
+            <div class="rate-kpi-note">KPI 0.06%</div>
+          </div>`).join('')}
+      </div>
+      <div class="course-group-header">
+        <div></div>
+        <div class="col-group-label col-group-avg" style="grid-column:span 3">平均單店</div>
+        <div class="col-group-label col-group-err" style="grid-column:span 3">誤盤率</div>
+      </div>
+      <div class="course-header-row">
+        <div class="col-label">課別</div>
+        <div class="col-label" style="color:#4da8f8">品項</div>
+        <div class="col-label" style="color:#4da8f8">數量</div>
+        <div class="col-label" style="color:#4da8f8">金額</div>
+        <div class="col-label" style="color:#f4874a">品項誤盤率</div>
+        <div class="col-label" style="color:#f4874a">件數誤盤率</div>
+        <div class="col-label" style="color:#f4874a">金額誤盤率</div>
+      </div>
+      ${courses.map(c=>{
+        const pid=`qp-${dept.short}-${c.name}`;
+        // 品項、金額：使用效率資料（整家店為單位），數量：品質資料加權平均
+        const effC = effData[dept.short]?.courses[c.name];
+        const cAvgItem = effC ? effC.avgItems : null;
+        const cAvgAmt  = effC ? effC.avgInv : null;
+        // 數量效率資料無此欄，以品質資料依已盤店數加權平均
+        const base = c.name.replace(/[\(（][^\)）]*[\)）]/g,'').trim();
+        const cPpl = qualityPersonData.filter(d=>d.dept===dept.short&&d.course.replace(/[\(（][^\)）]*[\)）]/g,'').trim()===base&&d.stores>0);
+        const totalS = cPpl.reduce((s,p)=>s+p.stores,0);
+        const cAvgQty = totalS>0?Math.round(cPpl.reduce((s,p)=>s+p.avgQty*p.stores,0)/totalS):null;
+        const avgCell = (v,unit='')=>v!==null
+          ?`<div class="avg-cell"><div class="avg-num">${v.toLocaleString()}${unit}</div></div>`
+          :`<div class="avg-cell"><div class="avg-na">—</div></div>`;
+        return `<div class="q-course-row" onclick="toggleCourseDetail('${dept.short}','${c.name}','${pid}')">
+          <div class="q-course-name">${c.name}<span class="q-person-toggle" id="tog-${pid}">▶</span><br><span class="q-course-sub">${c.人數}人</span></div>
+          ${avgCell(cAvgItem)}
+          ${avgCell(cAvgQty)}
+          ${cAvgAmt!==null?`<div class="avg-cell"><div class="avg-num">${Math.round(cAvgAmt/10000)}萬</div></div>`:`<div class="avg-cell"><div class="avg-na">—</div></div>`}
+          ${[{v:c.品項率},{v:c.件數率},{v:c.金額率}].map(k=>{
+            const cl=qcls(k.v);
+            return `<div class="rate-cell">
+              <div class="rate-num ${cl}">${fmt(k.v)}</div>
+              <div class="mini-bar-wrap"><div class="mini-bar-fill" style="width:${barW(k.v)}%;background:${bColor(cl)}"></div><div class="kpi-marker" style="left:${kpiPct}%"></div></div>
+            </div>`;
+          }).join('')}
+        </div>
+        <div class="q-person-panel" id="${pid}"></div>`;
+      }).join('')}
+    </div>`;
+  });
+  document.getElementById('quality-grid').innerHTML = html;
+}
+
+// ══════════════════════════════════════════════════════
+// Efficiency
+// ══════════════════════════════════════════════════════
+function buildEfficiency(){
+  let html='';
+  Object.entries(effData).forEach(([deptKey,dv])=>{
+    const tot=Object.values(dv.courses).reduce((s,c)=>s+c.total,0);
+    html+=`<div class="eff-dept-block" style="margin-bottom:14px">
+      <div class="dept-header">
+        <div class="dept-dot" style="background:${dv.color}"></div>
+        <div class="dept-name">盤點中心${deptKey}</div>
+        <div class="dept-subtotal">共 ${tot} 家店</div>
+      </div>
+      <table class="eff-table">
+        <thead><tr>
+          <th>課別</th><th>盤點店數</th><th>平均耗時</th><th>平均人數</th>
+          <th style="color:#E24B4A">&lt;3人店數<br>（占比）</th>
+          <th style="color:#EF9F27">&lt;4人店數<br>（占比）</th>
+          <th>平均庫存</th><th style="min-width:240px">庫存分布</th>
+        </tr></thead>
+        <tbody>${Object.entries(dv.courses).map(([cn,c])=>{
+          const c3=lt3cls(c.lt3p), c4=c.lt4p>=95?'pct-high':c.lt4p>=80?'pct-mid':'pct-low';
+          const maxP=Math.max(...invLabels.map(l=>c.inv[l].p));
+          const invRows=invLabels.map((lbl,i)=>{const d=c.inv[lbl];const w=maxP>0?(d.p/maxP*100).toFixed(1):0;
+            return `<div class="inv-row"><div class="inv-label">${lbl}</div><div class="inv-bar-wrap"><div class="inv-bar-fill ${invColors[i]}" style="width:${w}%"></div></div><div class="inv-num">${d.n}家 ${d.p}%</div></div>`;
+          }).join('');
+          return `<tr>
+            <td>${cn}</td><td><strong>${c.total}</strong></td><td>${fmtMin(c.avgMin)}</td><td>${c.avgPpl.toFixed(1)} 人</td>
+            <td><span class="pct-badge ${c3}">${c.lt3}家<br>${c.lt3p}%</span></td>
+            <td><span class="pct-badge ${c4}">${c.lt4}家<br>${c.lt4p}%</span></td>
+            <td>${fmtMoney(c.avgInv)}</td>
+            <td><div class="inv-cell">${invRows}</div></td>
+          </tr>`;
+        }).join('')}</tbody>
+      </table>
+    </div>`;
+  });
+  document.getElementById('eff-content').innerHTML=html;
+}
+
+// ══════════════════════════════════════════════════════
+// Quality – 點擊課別展開個人明細
+// ══════════════════════════════════════════════════════
+function toggleCourseDetail(dept, course, panelId){
+  const panel = document.getElementById(panelId);
+  const tog   = document.getElementById('tog-' + panelId);
+  if(panel.classList.contains('open')){
+    panel.classList.remove('open');
+    if(tog) tog.textContent = '▶';
+    return;
+  }
+  // 同一部門其他展開的關掉
+  panel.closest('.q-dept-block').querySelectorAll('.q-person-panel.open').forEach(p=>{
+    p.classList.remove('open');
+    const t = document.getElementById('tog-' + p.id);
+    if(t) t.textContent = '▶';
+  });
+
+  // 比對課名（忽略括號備注，如「北二課(不計入)」也算北二課）
+  const baseName = course.replace(/[\(（][^\)）]*[\)）]/g,'').trim();
+  const persons  = qualityPersonData.filter(d =>
+    d.dept === dept &&
+    d.course.replace(/[\(（][^\)）]*[\)）]/g,'').trim() === baseName
+  );
+
+  if(!persons.length){
+    panel.innerHTML = '<div style="padding:12px 14px;font-size:11px;color:#545770">無個人明細資料</div>';
+    panel.classList.add('open');
+    if(tog) tog.textContent = '▼';
+    return;
+  }
+
+  // 依品項誤盤率由低至高排序（null 排最後）
+  const sorted = [...persons].sort((a,b)=>{
+    if(a.errItem===null && b.errItem===null) return 0;
+    if(a.errItem===null) return 1;
+    if(b.errItem===null) return -1;
+    return a.errItem - b.errItem;
+  });
+
+  const rows = sorted.map(p=>{
+    const isNC = p.course !== course && (p.course.includes('不計入') || p.course.includes('未計入'));
+    const ncTag = isNC ? `<span style="font-size:9px;color:#545770;margin-left:4px">(不計入)</span>` : '';
+    const zeroWorks = p.stores === 0;
+    return `<tr style="${isNC?'opacity:0.55':''}">
+      <td>${p.name}${ncTag}${zeroWorks?'<span class="q-person-nc"> 未作業</span>':''}</td>
+      <td>${p.title}</td>
+      <td style="color:#8890b0">${p.stores}</td>
+      <td>${p.stores>0 ? p.avgItem.toLocaleString() : '<span class="q-person-nc">-</span>'}</td>
+      <td>${p.stores>0 ? p.avgQty.toLocaleString() : '<span class="q-person-nc">-</span>'}</td>
+      <td>${p.stores>0 ? Math.round(p.avgAmt).toLocaleString() : '<span class="q-person-nc">-</span>'}</td>
+      <td>${fmtErr(p.errItem)}</td>
+      <td>${fmtErr(p.errQty)}</td>
+      <td>${fmtErr(p.errAmt)}</td>
+    </tr>`;
+  }).join('');
+
+  // 有不計入的備注
+  const ncCount = persons.filter(p=>p.course!==course).length;
+  const noteHtml = ncCount
+    ? `<div class="q-person-footer">※ 含 ${ncCount} 位標記為「不計入」人員（以半透明顯示）</div>`
+    : '';
+
+  panel.innerHTML = `<table class="q-person-table">
+    <thead><tr>
+      <th>姓名</th><th>職稱</th><th>已盤店</th>
+      <th>平均品項</th><th>平均數量</th><th>平均金額</th>
+      <th>品項誤盤率</th><th>件數誤盤率</th><th>金額誤盤率</th>
+    </tr></thead>
+    <tbody>${rows}</tbody>
+  </table>${noteHtml}`;
+
+  panel.classList.add('open');
+  if(tog) tog.textContent = '▼';
+}
+
+// ══════════════════════════════════════════════════════
+// Team Analysis
+// ══════════════════════════════════════════════════════
+const COURSE_ORDER = ['北一課','北二課','北三課','北四課','桃竹課','台中課','嘉南課','高屏課'];
+const COURSE_COLOR = {
+  '北一課':'#1D9E75','北二課':'#1D9E75','北三課':'#1D9E75','北四課':'#1D9E75','桃竹課':'#1D9E75',
+  '台中課':'#378ADD','嘉南課':'#378ADD','高屏課':'#378ADD'
+};
+let currentTeamCourse = '北一課';
+
+function buildTeamTabs(){
+  document.getElementById('team-course-tabs').innerHTML = COURSE_ORDER.map(c =>
+    `<div class="period-tab${c===currentTeamCourse?' active':''}" onclick="selectTeamCourse('${c}')">${c}</div>`
+  ).join('');
+}
+
+function selectTeamCourse(c){ currentTeamCourse=c; buildTeamTabs(); buildTeamContent(); }
+
+// 效率指數 = 每萬元庫存花幾分鐘，越低越好（排除店鋪大小影響）
+function calcEffIdx(avgMin, avgInv){ return avgMin / (avgInv / 10000); }
+function effCls(v, avg){ return v < avg*0.92 ? 'eff-fast' : v > avg*1.08 ? 'eff-slow' : 'eff-avg'; }
+
+function buildTeamContent(){
+  const course = currentTeamCourse;
+  const accColor = document.getElementById('tab-team').dataset.color || '#f4874a';
+
+  // 效率指數 = 耗時 × 人數 ÷ (庫存/萬)，單位：人·分/萬，越低越好
+  const persons = teamPersonData
+    .filter(d=>d.course===course)
+    .map(p=>({...p, effIdx: p.avgMin * p.avgPpl / (p.avgInv/10000)}))
+    .sort((a,b)=>a.effIdx-b.effIdx);
+
+  const combos = teamComboData
+    .filter(d=>d.course===course)
+    .map(c=>({...c, effIdx: c.avgMin * c.avgPpl / (c.avgInv/10000)}))
+    .sort((a,b)=>b.n-a.n||a.effIdx-b.effIdx);
+
+  if(!persons.length){ document.getElementById('team-content').innerHTML='<div style="padding:40px;text-align:center;color:#545770">無資料</div>'; return; }
+
+  const avgEffIdx = persons.reduce((s,p)=>s+p.effIdx,0)/persons.length;
+  const avgMin    = persons.reduce((s,p)=>s+p.avgMin,0)/persons.length;
+  const n25 = Math.ceil(persons.length*0.25);
+  const n75 = Math.floor(persons.length*0.75);
+
+  // 帶組vs成員效率比較
+  const leaders  = persons.filter(p=>p.ldrPct>=50);
+  const members  = persons.filter(p=>p.ldrPct<50);
+  const ldrAvg   = leaders.length  ? leaders.reduce((s,p)=>s+p.effIdx,0)/leaders.length  : null;
+  const memAvg   = members.length  ? members.reduce((s,p)=>s+p.effIdx,0)/members.length  : null;
+
+  const personRows = persons.map((p,i)=>{
+    const isTop = i < n25, isBot = i >= n75;
+    const rankCls = isTop?'rank-top':isBot?'rank-bot':'rank-mid';
+    const chipBg  = isTop?'#162a22':isBot?'#2a1520':'#1e2030';
+    const chipCol = isTop?'#2dd4a0':isBot?'#e05c6e':'#7b7f96';
+    const cls = effCls(p.effIdx, avgEffIdx);
+    const badge = cls==='eff-fast'?'效率佳':cls==='eff-slow'?'待改善':'一般';
+    const ldrTag = p.ldrPct>=50
+      ? `<span style="font-size:9px;padding:1px 5px;border-radius:8px;background:#2a2040;color:#c084fc;margin-left:3px;font-weight:600">帶</span>`
+      : '';
+    return `<tr>
+      <td><span class="team-rank ${rankCls}">${i+1}</span></td>
+      <td><span class="name-chip" style="background:${chipBg};color:${chipCol}">${p.name}</span>${ldrTag}</td>
+      <td style="color:#8890b0">${p.n}</td>
+      <td style="font-size:11px">${fmtMin(p.avgMin)}<br><span style="color:#8890b0">${p.avgPpl.toFixed(1)}人・${Math.round(p.avgInv/10000)}萬</span></td>
+      <td><span class="eff-idx-val ${cls}">${p.effIdx.toFixed(2)}</span><br><span class="eff-idx-unit">人·分/萬</span></td>
+      <td><span class="eff-badge ${cls}">${badge}</span></td>
+    </tr>`;
+  }).join('');
+
+  const comboRows = combos.map(c=>{
+    const cls = effCls(c.effIdx, avgEffIdx);
+    const badge = cls==='eff-fast'?'效率佳':cls==='eff-slow'?'待改善':'一般';
+    const chars = [...c.combo].map(ch=>`<span class="char-dot">${ch}</span>`).join('');
+    return `<tr>
+      <td><div class="combo-chip">${chars}</div></td>
+      <td style="color:#8890b0">${c.n}</td>
+      <td style="font-size:11px">${fmtMin(c.avgMin)}<br><span style="color:#8890b0">${c.avgPpl.toFixed(1)}人・${Math.round(c.avgInv/10000)}萬</span></td>
+      <td><span class="eff-idx-val ${cls}">${c.effIdx.toFixed(2)}</span><br><span class="eff-idx-unit">人·分/萬</span></td>
+      <td><span class="eff-badge ${cls}">${badge}</span></td>
+    </tr>`;
+  }).join('');
+
+  // 帶組 vs 成員 比較摘要
+  let ldrVsMemHtml = '';
+  if(ldrAvg !== null && memAvg !== null){
+    const diff = ((ldrAvg - memAvg)/memAvg*100).toFixed(1);
+    const diffColor = ldrAvg > memAvg ? '#e05c6e' : '#2dd4a0';
+    const diffText = ldrAvg > memAvg
+      ? `帶組人員效率指數平均比成員高 ${Math.abs(diff)}%（較慢，反映帶組額外工作量）`
+      : `帶組人員效率指數平均比成員低 ${Math.abs(diff)}%（較快）`;
+    ldrVsMemHtml = `
+    <div class="legend-row" style="margin-top:0">
+      <span style="font-size:11px;color:#d8a8ff;font-weight:600">帶組分析</span>
+      <span style="font-size:11px;color:#8890b0;margin-left:8px">帶組（帶 ≥50%場次）均值：<strong style="color:#d8a8ff">${ldrAvg.toFixed(2)}</strong> 人·分/萬</span>
+      <span style="font-size:11px;color:#8890b0">成員均值：<strong style="color:#a0a4bc">${memAvg.toFixed(2)}</strong> 人·分/萬</span>
+      <span style="font-size:11px;color:${diffColor};font-weight:500">${diffText}</span>
+    </div>`;
+  }
+
+  document.getElementById('team-content').innerHTML = `
+  <div class="legend-row">
+    <span class="eff-badge eff-fast">效率佳</span><span style="font-size:11px;color:#8890b0;margin:0 12px 0 4px">低於課均 8% ↑</span>
+    <span class="eff-badge eff-avg">一般</span><span style="font-size:11px;color:#8890b0;margin:0 12px 0 4px">課均 ±8%</span>
+    <span class="eff-badge eff-slow">待改善</span><span style="font-size:11px;color:#8890b0;margin:0 4px 0 4px">高於課均 8% ↑</span>
+    <span style="margin-left:8px;font-size:9px;padding:1px 5px;border-radius:8px;background:#2a2040;color:#d8a8ff;font-weight:600">帶</span><span style="font-size:11px;color:#8890b0;margin-left:4px">帶組比例 ≥50%</span>
+    <div style="margin-left:auto;font-size:11px;color:#8890b0">效率指數＝耗時×人數÷(庫存/萬)・課均 ${avgEffIdx.toFixed(2)} 人·分/萬</div>
+  </div>
+  ${ldrVsMemHtml}
+  <div class="team-grid">
+    <div class="team-section">
+      <div class="team-section-header" style="border-left:3px solid ${accColor}">
+        個人效率排行<span class="team-section-sub">效率指數由低至高（最快在前）・${persons.length} 人</span>
+      </div>
+      <table class="team-table">
+        <thead><tr><th>#</th><th>代號</th><th>場次</th><th>耗時・人數・庫存</th><th>效率指數</th><th>評比</th></tr></thead>
+        <tbody>${personRows}</tbody>
+      </table>
+      <div class="team-note">※ 效率指數 = 平均耗時 × 平均人數 ÷ (庫存/萬)，同時排除店鋪大小與人力多寡的影響；「帶」代表帶組比例 ≥50%</div>
+    </div>
+    <div class="team-section">
+      <div class="team-section-header" style="border-left:3px solid ${accColor}">
+        常見組合分析<span class="team-section-sub">出場 ≥ 2 次・${combos.length} 組</span>
+      </div>
+      <table class="team-table">
+        <thead><tr><th>組合</th><th>場次</th><th>耗時・人數・庫存</th><th>效率指數</th><th>評比</th></tr></thead>
+        <tbody>${comboRows}</tbody>
+      </table>
+      <div class="team-note">※ 每個色圈代表一位人員；組合為同場次出現的完整小組</div>
+    </div>
+  </div>`;
+}
+
+// ══════════════════════════════════════════════════════
+// Tab switch
+// ══════════════════════════════════════════════════════
+function setTab(key){
+  document.querySelectorAll('.nav-tab').forEach(t=>{
+    t.classList.remove('active');
+    t.style.borderBottomColor = 'transparent';
+    t.style.color = '';
+  });
+  document.querySelectorAll('.panel').forEach(p=>p.classList.remove('active'));
+  const tab = document.getElementById('tab-'+key);
+  tab.classList.add('active');
+  const accent = tab.dataset.color || '#9b7ef0';
+  tab.style.borderBottomColor = accent;
+  tab.style.color = accent;
+  document.getElementById('panel-'+key).classList.add('active');
+  // sync period-tab active color per section
+  document.querySelectorAll('.period-tab.active').forEach(pt=>{ pt.style.background=accent+'22'; pt.style.color=accent; pt.style.borderColor=accent+'55'; });
+}
+
+buildHeadcount();
+buildQualityTabs();
+buildQualityGrid();
+buildEfficiency();
+buildTeamTabs();
+buildTeamContent();
+
+// 初始化第一個 tab 的顏色
+(function(){
+  const tab = document.getElementById('tab-headcount');
+  const accent = tab.dataset.color || '#9b7ef0';
+  tab.style.borderBottomColor = accent;
+  tab.style.color = accent;
+})();
+</script>
+</body>
+</html>
